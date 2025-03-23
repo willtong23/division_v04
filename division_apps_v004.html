@@ -1,0 +1,2835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Long Division Visualizer - Interactive Learning</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f0ff',
+                            100: '#e0e0ff',
+                            200: '#c2c1ff',
+                            300: '#a3a2ff',
+                            400: '#8583ff',
+                            500: '#5D5CDE',
+                            600: '#4c4bc7',
+                            700: '#3d3db0',
+                            800: '#302f8a',
+                            900: '#232264'
+                        },
+                        secondary: {
+                            50: '#f1f9fe',
+                            100: '#e2f3fd',
+                            200: '#c6e7fa',
+                            300: '#a9daf8',
+                            400: '#8dcef5',
+                            500: '#70c2f3',
+                            600: '#5ab6ea',
+                            700: '#459bd8',
+                            800: '#2f80c7',
+                            900: '#1965b6'
+                        },
+                        accent: {
+                            50: '#fff2f0',
+                            100: '#ffe6e1',
+                            200: '#ffccc3',
+                            300: '#ffb3a5',
+                            400: '#ff9987',
+                            500: '#ff806a',
+                            600: '#ff674d',
+                            700: '#e64d30',
+                            800: '#cc3313',
+                            900: '#b31900'
+                        },
+                        success: {
+                            50: '#ecfdf5',
+                            100: '#d1fae5',
+                            200: '#a7f3d0',
+                            300: '#6ee7b7',
+                            400: '#34d399',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            800: '#065f46',
+                            900: '#064e3b'
+                        },
+                        error: {
+                            50: '#fef2f2',
+                            100: '#fee2e2',
+                            200: '#fecaca',
+                            300: '#fca5a5',
+                            400: '#f87171',
+                            500: '#ef4444',
+                            600: '#dc2626',
+                            700: '#b91c1c',
+                            800: '#991b1b',
+                            900: '#7f1d1d'
+                        },
+                        neutral: {
+                            50: '#f9f9fb',
+                            100: '#f3f3f6',
+                            200: '#e7e7ec',
+                            300: '#d1d1db',
+                            400: '#a9a9b8',
+                            500: '#81818e',
+                            600: '#63636e',
+                            700: '#4b4b55',
+                            800: '#2e2e36',
+                            900: '#1c1c21'
+                        }
+                    },
+                    fontFamily: {
+                        'sans': ['Poppins', 'sans-serif'],
+                        'mono': ['Space Mono', 'monospace']
+                    },
+                    boxShadow: {
+                        'soft': '0 2px 15px 0 rgba(0, 0, 0, 0.05)',
+                        'medium': '0 4px 20px 0 rgba(0, 0, 0, 0.1)',
+                        'inner-soft': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.05)'
+                    },
+                    borderRadius: {
+                        'xl': '1rem',
+                        '2xl': '1.5rem',
+                        '3xl': '2rem'
+                    },
+                    spacing: {
+                        '72': '18rem',
+                        '84': '21rem',
+                        '96': '24rem'
+                    },
+                    animation: {
+                        'slide-in': 'slideIn 0.3s ease-out forwards',
+                        'fade-in': 'fadeIn 0.4s ease-out forwards',
+                        'pulse-subtle': 'pulseSubtle 2s infinite'
+                    },
+                    keyframes: {
+                        slideIn: {
+                            '0%': { transform: 'translateY(10px)', opacity: 0 },
+                            '100%': { transform: 'translateY(0)', opacity: 1 }
+                        },
+                        fadeIn: {
+                            '0%': { opacity: 0 },
+                            '100%': { opacity: 1 }
+                        },
+                        pulseSubtle: {
+                            '0%, 100%': { opacity: 1 },
+                            '50%': { opacity: 0.85 }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Base */
+        body {
+            font-family: 'Poppins', sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        
+        /* Grid System */
+        .grid-cell {
+            width: 2.5rem;
+            height: 2.5rem;
+            font-family: 'Space Mono', monospace;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #e7e7ec;
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .dark .grid-cell {
+            border-color: #3d3d47;
+        }
+        
+        .grid-cell.highlight-row {
+            background-color: rgba(93, 92, 222, 0.1);
+        }
+        
+        .dark .grid-cell.highlight-row {
+            background-color: rgba(93, 92, 222, 0.2);
+        }
+        
+        .h-line {
+            border-bottom: 2px solid #2e2e36;
+        }
+        
+        .dark .h-line {
+            border-bottom: 2px solid #d1d1db;
+        }
+        
+        .division-line {
+            border-right: 3px solid #2e2e36;
+        }
+        
+        .dark .division-line {
+            border-right: 3px solid #d1d1db;
+        }
+        
+        .highlight {
+            background-color: rgba(93, 92, 222, 0.1);
+        }
+        
+        .dark .highlight {
+            background-color: rgba(93, 92, 222, 0.2);
+        }
+        
+        /* Division Steps */
+        .step-section {
+            transition: all 0.3s;
+        }
+        
+        /* Practice Mode */
+        .grid-input {
+            width: 2.5rem;
+            height: 2.5rem;
+            font-family: 'Space Mono', monospace;
+            font-size: 1.25rem;
+            text-align: center;
+            border: 1px solid #5D5CDE;
+            background-color: rgba(93, 92, 222, 0.05);
+            border-radius: 0.375rem;
+            transition: all 0.3s;
+        }
+        
+        .dark .grid-input {
+            background-color: rgba(93, 92, 222, 0.1);
+            color: white;
+        }
+        
+        .grid-input:focus {
+            outline: none;
+            border-color: #5D5CDE;
+            box-shadow: 0 0 0 3px rgba(93, 92, 222, 0.2);
+            background-color: rgba(93, 92, 222, 0.1);
+        }
+        
+        .dark .grid-input:focus {
+            background-color: rgba(93, 92, 222, 0.2);
+            box-shadow: 0 0 0 3px rgba(93, 92, 222, 0.3);
+        }
+        
+        .grid-input.correct {
+            border-color: #10b981;
+            background-color: rgba(16, 185, 129, 0.1);
+        }
+        
+        .grid-input.incorrect {
+            border-color: #ef4444;
+            background-color: rgba(239, 68, 68, 0.1);
+        }
+        
+        .grid-input:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        
+        /* Responsive Table */
+        @media (max-width: 768px) {
+            .responsive-table {
+                display: block;
+                width: 100%;
+                overflow-x: auto;
+                border-radius: 0.5rem;
+            }
+        }
+
+        /* Subtraction Symbol */
+        .subtraction-symbol {
+            font-weight: bold;
+            font-size: 1.25rem;
+            margin-right: 0.25rem;
+        }
+        
+        /* App Tabs */
+        .app-tab {
+            position: relative;
+            transition: all 0.3s;
+        }
+        
+        .app-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background-color: #5D5CDE;
+            border-radius: 3px;
+        }
+        
+        /* Animations */
+        .animate-slide-in {
+            animation: slideIn 0.3s ease-out forwards;
+        }
+        
+        @keyframes slideIn {
+            0% {
+                transform: translateY(10px);
+                opacity: 0;
+            }
+            100% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+        
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f6;
+            border-radius: 4px;
+        }
+        
+        .dark ::-webkit-scrollbar-track {
+            background: #2e2e36;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #a9a9b8;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #81818e;
+        }
+        
+        .dark ::-webkit-scrollbar-thumb {
+            background: #63636e;
+        }
+        
+        .dark ::-webkit-scrollbar-thumb:hover {
+            background: #81818e;
+        }
+        
+        /* Custom components */
+        .number-card {
+            border-radius: 1rem;
+            border: 1px solid #e7e7ec;
+            transition: all 0.3s;
+        }
+        
+        .dark .number-card {
+            border-color: #3d3d47;
+        }
+        
+        .card-container {
+            border-radius: 1rem;
+            box-shadow: 0 2px 15px 0 rgba(0, 0, 0, 0.05);
+            transition: all 0.3s;
+            overflow: hidden;
+        }
+        
+        .dark .card-container {
+            box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.2);
+        }
+        
+        /* Timer Pulse Animation */
+        .animate-pulse-subtle {
+            animation: pulseSubtle 2s infinite;
+        }
+        
+        @keyframes pulseSubtle {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.85;
+            }
+        }
+
+        /* Practice Grid Label */
+        .grid-label {
+            font-size: 0.75rem;
+            color: #a9a9b8;
+            position: absolute;
+            top: -1.5rem;
+            left: 0;
+            right: 0;
+            text-align: center;
+        }
+        
+        .dark .grid-label {
+            color: #81818e;
+        }
+
+        #questions-container {
+            /* No additional styles needed now that we're using Tailwind's space-y-3 */
+        }
+    </style>
+</head>
+<body class="transition-colors duration-300 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 min-h-screen">
+    <!-- Header -->
+    <header class="border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-sm sticky top-0 z-10">
+        <div class="container mx-auto py-4 px-4 sm:px-6 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <svg viewBox="0 0 24 24" class="w-8 h-8 text-primary-500" fill="currentColor">
+                    <path d="M4,2H20A2,2 0 0,1 22,4V16A2,2 0 0,1 20,18H16L12,22L8,18H4A2,2 0 0,1 2,16V4A2,2 0 0,1 4,2M4,4V16H8.83L12,19.17L15.17,16H20V4H4M6,7H18V9H6V7M6,11H16V13H6V11M6,15H14V17H6V15Z"/>
+                </svg>
+                <h1 class="text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-primary-500 to-secondary-500">
+                    Long Division Visualizer
+                </h1>
+            </div>
+            <div class="flex items-center gap-3">
+                <button id="themeToggle" class="p-2 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
+                    <!-- Moon icon for light mode -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="hidden dark:block h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                    <!-- Sun icon for dark mode -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="block dark:hidden h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-6 md:px-6">
+        <!-- Navigation Tabs -->
+        <div class="mb-6 flex justify-center">
+            <div class="relative inline-flex bg-neutral-100 dark:bg-neutral-800 p-1 rounded-xl shadow-inner-soft">
+                <button id="practiceModeBtn" class="relative app-tab active z-10 min-w-[120px] px-4 py-2.5 text-sm font-medium rounded-lg transition-colors">
+                    <span class="relative z-10">Practice Mode</span>
+                    <span class="absolute inset-0 bg-white dark:bg-neutral-700 rounded-lg shadow-soft transition-opacity opacity-100"></span>
+                </button>
+                <button id="demoModeBtn" class="relative app-tab z-10 min-w-[120px] px-4 py-2.5 text-sm font-medium rounded-lg transition-colors">
+                    <span class="relative z-10">Demo Mode</span>
+                    <span class="absolute inset-0 bg-white dark:bg-neutral-700 rounded-lg shadow-soft transition-opacity opacity-0"></span>
+                </button>
+                <button id="teacherDashboardBtn" class="relative app-tab z-10 min-w-[120px] px-4 py-2.5 text-sm font-medium rounded-lg transition-colors">
+                    <span class="relative z-10">Teacher Dashboard</span>
+                    <span class="absolute inset-0 bg-white dark:bg-neutral-700 rounded-lg shadow-soft transition-opacity opacity-0"></span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Demo Mode Section -->
+        <div id="demoMode" class="hidden animate-fade-in">
+            <div class="card-container bg-white dark:bg-neutral-800 mb-6">
+                <div class="px-6 py-3 border-b border-neutral-200 dark:border-neutral-700">
+                    <h2 class="text-lg font-semibold">Visualize Long Division</h2>
+                    <p class="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Enter numbers to see the division process step by step</p>
+                </div>
+                <form id="demoForm" class="p-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label for="demo-dividend" class="block mb-1 text-sm font-medium">Dividend (up to 4 digits)</label>
+                            <div class="relative">
+                                <input 
+                                    type="number" 
+                                    id="demo-dividend" 
+                                    min="1" 
+                                    max="9999" 
+                                    class="w-full p-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-base" 
+                                    required
+                                >
+                                <div class="absolute right-3 top-2 text-neutral-400 dark:text-neutral-500 text-sm pointer-events-none">
+                                    <span>Example: 1234</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="demo-divisor" class="block mb-1 text-sm font-medium">Divisor</label>
+                            <div class="relative">
+                                <input 
+                                    type="number" 
+                                    id="demo-divisor" 
+                                    min="1" 
+                                    max="999" 
+                                    class="w-full p-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-base" 
+                                    required
+                                >
+                                <div class="absolute right-3 top-2 text-neutral-400 dark:text-neutral-500 text-sm pointer-events-none">
+                                    <span>Example: 5</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center mt-4">
+                        <div></div>
+                        <button type="submit" id="startDemoBtn" class="px-5 py-2 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-lg hover:from-primary-600 hover:to-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-800 transition-all shadow-md">
+                            Visualize
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <div id="stepBtnContainer" class="mb-4 flex justify-center hidden animate-fade-in">
+                <button id="stepButton" class="px-5 py-2.5 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors mr-4 shadow-md flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                    </svg>
+                    Next Step
+                </button>
+                <button id="resetButton" class="px-5 py-2.5 bg-neutral-500 text-white rounded-lg hover:bg-neutral-600 transition-colors shadow-md flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Reset
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                <div class="lg:col-span-2">
+                    <div id="gridContainer" class="hidden animate-fade-in">
+                        <div class="card-container bg-white dark:bg-neutral-800 p-5 mb-5">
+                            <h2 class="text-lg font-semibold mb-3 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                                Division Worksheet
+                            </h2>
+                            <div class="flex justify-center overflow-x-auto py-3">
+                                <div class="relative">
+                                    <div id="division-grid" class="grid grid-cols-10 gap-0 rounded-lg overflow-hidden shadow-md"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="lg:col-span-1">
+                    <div class="flex flex-col space-y-5">
+                        <div id="explanationContainer" class="hidden animate-fade-in">
+                            <div class="card-container bg-white dark:bg-neutral-800 p-5">
+                                <h2 class="text-lg font-semibold mb-3 flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Current Step
+                                </h2>
+                                <div id="explanation" class="prose dark:prose-invert max-w-none text-sm"></div>
+                            </div>
+                        </div>
+                        
+                        <div id="stepsContainer" class="hidden animate-fade-in">
+                            <div class="card-container bg-white dark:bg-neutral-800 p-5">
+                                <h2 class="text-lg font-semibold mb-3 flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Steps Completed
+                                </h2>
+                                <div id="steps" class="space-y-4 max-h-96 overflow-y-auto pr-2"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Practice Mode Section -->
+        <div id="practiceMode" class="animate-fade-in">
+            <!-- Practice Settings Section -->
+            <div id="practiceSettingsSection" class="mb-6">
+                <div class="card-container bg-white dark:bg-neutral-800">
+                    <div class="px-6 py-3 border-b border-neutral-200 dark:border-neutral-700">
+                        <h2 class="text-lg font-semibold">Practice Settings</h2>
+                        <p class="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Customize your practice session</p>
+                    </div>
+                    <form id="practiceSettingsForm" class="p-4">
+                        <div>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                                <div>
+                                    <label for="dividend-digits" class="block mb-1 text-sm font-medium">Dividend Digits</label>
+                                    <select id="dividend-digits" class="w-full p-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-sm">
+                                        <option value="1">1 digit</option>
+                                        <option value="2">2 digits</option>
+                                        <option value="3">3 digits</option>
+                                        <option value="4" selected>4 digits</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label for="divisor-digits" class="block mb-1 text-sm font-medium">Divisor Digits</label>
+                                    <select id="divisor-digits" class="w-full p-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-sm">
+                                        <option value="1" selected>1 digit</option>
+                                        <option value="2">2 digits</option>
+                                        <option value="3">3 digits</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label for="remainder-option" class="block mb-1 text-sm font-medium">Remainder</label>
+                                    <select id="remainder-option" class="w-full p-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-sm">
+                                        <option value="either" selected>With or without</option>
+                                        <option value="with">With remainder</option>
+                                        <option value="without">Without remainder</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label for="question-count" class="block mb-1 text-sm font-medium">Question Count</label>
+                                    <select id="question-count" class="w-full p-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-sm">
+                                        <option value="1" selected>1 question</option>
+                                        <option value="2">2 questions</option>
+                                        <option value="3">3 questions</option>
+                                        <option value="5">5 questions</option>
+                                        <option value="10">10 questions</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 gap-3">
+                                <div>
+                                    <label for="student-name" class="block mb-1 text-sm font-medium">Your Name</label>
+                                    <input type="text" id="student-name" placeholder="Enter your name" class="w-full p-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-sm" required>
+                                </div>
+                                
+                                <div>
+                                    <label for="assignment-select" class="block mb-1 text-sm font-medium">Teacher Assignment</label>
+                                    <select id="assignment-select" class="w-full p-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-sm">
+                                        <option value="" selected>No assignment</option>
+                                        <!-- Teacher assignments will be added here -->
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-between items-center mt-4">
+                            <div></div>
+                            <button type="submit" class="px-5 py-2 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-lg hover:from-primary-600 hover:to-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-800 transition-all shadow-md">
+                                Start Practice
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Practice Interface -->
+            <div id="practiceInterface" class="hidden animate-fade-in">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                    <div class="lg:col-span-2">
+                        <!-- 10x10 Grid for Practice -->
+                        <div class="card-container bg-white dark:bg-neutral-800 p-5 mb-5">
+                            <div class="flex items-center justify-between mb-3">
+                                <h2 class="text-lg font-semibold flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                    </svg>
+                                    Division Worksheet <span class="ml-2 text-sm font-normal">(Question <span id="currentQuestionNum">1</span>/<span id="totalQuestions">1</span>)</span>
+                                </h2>
+                                <div class="flex items-center gap-2">
+                                    <button id="backToSettingsBtn" class="px-3 py-1.5 bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 rounded-lg hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors text-sm flex items-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                                        </svg>
+                                        Back
+                                    </button>
+                                    <button id="finishBtn" class="px-4 py-1.5 bg-accent-500 hover:bg-accent-600 text-white rounded-lg transition-colors shadow-md flex items-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        Next
+                                    </button>
+                                    <button id="toggleTimerBtn" class="px-3 py-1.5 text-sm bg-secondary-500 hover:bg-secondary-600 text-white rounded-lg flex items-center transition-colors shadow-sm">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        Time
+                                    </button>
+                                    <div id="timerDisplay" class="hidden px-3 py-1.5 bg-neutral-100 dark:bg-neutral-700 text-sm rounded-lg animate-pulse-subtle">
+                                        <span class="font-medium">Time: <span id="timer" class="font-mono">0</span> seconds</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex justify-center overflow-x-auto py-3">
+                                <div class="relative">
+                                    <div id="practice-grid" class="grid grid-cols-10 gap-0 rounded-lg overflow-hidden shadow-md"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="lg:col-span-1">
+                        <!-- Feedback and Actions Section -->
+                        <div class="card-container bg-white dark:bg-neutral-800 p-5 sticky top-24">
+                            <h2 class="text-lg font-semibold mb-3 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Instructions
+                            </h2>
+                            <div id="feedback" class="text-sm mb-4">
+                                Fill in your solution and click <strong>Finish</strong> when complete.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Practice Results (only shown after finishing) -->
+            <div id="practiceResults" class="hidden animate-fade-in">
+                <div class="card-container bg-white dark:bg-neutral-800">
+                    <div class="px-6 py-4 border-b border-neutral-200 dark:border-neutral-700">
+                        <h2 class="text-lg font-semibold">Practice Results</h2>
+                        <p class="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Review your performance</p>
+                    </div>
+                    <div class="p-5">
+                        <div id="resultsContent" class="mb-4"></div>
+                        <div class="flex justify-center">
+                            <button id="nextQuestionBtn" class="hidden px-5 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors mr-4 shadow-md">
+                                Next Question
+                            </button>
+                            <button id="newPracticeBtn" class="px-5 py-2.5 bg-secondary-500 hover:bg-secondary-600 text-white rounded-lg transition-colors shadow-md">
+                                New Practice
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Teacher Dashboard Section -->
+        <div id="teacherDashboard" class="hidden animate-fade-in">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                <div class="lg:col-span-1">
+                    <!-- Assignment Creation Form -->
+                    <div class="card-container bg-white dark:bg-neutral-800 mb-5">
+                        <div class="px-6 py-4 border-b border-neutral-200 dark:border-neutral-700">
+                            <h2 class="text-lg font-semibold">Create Assignment</h2>
+                            <p class="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Create custom division problems</p>
+                        </div>
+                        <form id="assignmentForm" class="p-4">
+                            <div class="space-y-3">
+                                <div>
+                                    <label for="assignment-name" class="block mb-1 text-sm font-medium">Assignment Name</label>
+                                    <input type="text" id="assignment-name" class="w-full p-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-sm" required placeholder="Math Homework 1">
+                                </div>
+                                
+                                <div>
+                                    <label for="assignment-questions" class="block mb-1 text-sm font-medium">Number of Questions</label>
+                                    <select id="assignment-questions" class="w-full p-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-sm">
+                                        <option value="1">1 question</option>
+                                        <option value="2">2 questions</option>
+                                        <option value="3" selected>3 questions</option>
+                                        <option value="5">5 questions</option>
+                                        <option value="10">10 questions</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div id="questions-container" class="mt-3 space-y-3">
+                                <!-- Question settings will be generated here -->
+                            </div>
+                            
+                            <div class="flex justify-between items-center mt-4">
+                                <div></div>
+                                <button type="submit" class="px-4 py-2 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-lg hover:from-primary-600 hover:to-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-800 transition-all shadow-md">
+                                    Save Assignment
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- Assignments List -->
+                    <div class="card-container bg-white dark:bg-neutral-800">
+                        <div class="px-6 py-4 border-b border-neutral-200 dark:border-neutral-700 flex justify-between items-center">
+                            <h2 class="text-lg font-semibold">Assignments</h2>
+                            <span id="assignmentCount" class="px-2.5 py-1 bg-neutral-100 dark:bg-neutral-700 text-xs font-medium rounded-full">0 assignments</span>
+                        </div>
+                        
+                        <div id="no-assignments-message" class="p-4 text-center text-neutral-500 dark:text-neutral-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <p>No assignments created yet.</p>
+                            <p class="text-sm mt-1">Create your first assignment above.</p>
+                        </div>
+                        
+                        <div id="assignments-list" class="p-4 space-y-3 max-h-96 overflow-y-auto"></div>
+                    </div>
+                </div>
+                
+                <div class="lg:col-span-2">
+                    <!-- Practice Sessions -->
+                    <div class="card-container bg-white dark:bg-neutral-800">
+                        <div class="px-6 py-4 border-b border-neutral-200 dark:border-neutral-700 flex justify-between items-center">
+                            <h2 class="text-lg font-semibold">Student Practice Sessions</h2>
+                            <div class="flex items-center">
+                                <span id="sessionCount" class="px-2.5 py-1 bg-neutral-100 dark:bg-neutral-700 text-xs font-medium rounded-full mr-3">0 sessions</span>
+                                <button id="clearDataBtn" class="px-3 py-1.5 bg-accent-500 hover:bg-accent-600 text-white text-sm rounded-lg transition-colors shadow-sm flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                    Clear Data
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="p-4">
+                            <div class="mb-3 flex flex-wrap gap-2">
+                                <label for="student-filter" class="inline-flex items-center">
+                                    <span class="text-sm font-medium mr-2">Filter by student:</span>
+                                    <select id="student-filter" class="p-1.5 rounded border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-sm">
+                                        <option value="all">All students</option>
+                                        <!-- Student names will be added here -->
+                                    </select>
+                                </label>
+                            </div>
+                            
+                            <div class="text-sm mb-3 text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-700/50 p-3 rounded-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-1 text-neutral-500 dark:text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Note: Session data persists only until you clear it or refresh the page.
+                            </div>
+                            
+                            <!-- Sessions Table -->
+                            <div class="responsive-table rounded-lg shadow-sm overflow-hidden border border-neutral-200 dark:border-neutral-700">
+                                <table id="sessionsTable" class="w-full border-collapse">
+                                    <thead>
+                                        <tr class="bg-neutral-100 dark:bg-neutral-700 text-left text-sm">
+                                            <th class="p-3 cursor-pointer border-b border-r border-neutral-200 dark:border-neutral-600">Student <span class="sort-icon text-primary-500">↕</span></th>
+                                            <th class="p-3 cursor-pointer border-b border-r border-neutral-200 dark:border-neutral-600">Question <span class="sort-icon text-primary-500">↕</span></th>
+                                            <th class="p-3 cursor-pointer border-b border-r border-neutral-200 dark:border-neutral-600">Student's Answer <span class="sort-icon text-primary-500">↕</span></th>
+                                            <th class="p-3 cursor-pointer border-b border-r border-neutral-200 dark:border-neutral-600">Status <span class="sort-icon text-primary-500">↕</span></th>
+                                            <th class="p-3 cursor-pointer border-b border-neutral-200 dark:border-neutral-600">Time <span class="sort-icon text-primary-500">↕</span></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="sessionsTableBody">
+                                        <!-- Table rows will be generated here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div id="noDataMessage" class="py-12 text-center text-neutral-500 dark:text-neutral-400 hidden">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                </svg>
+                                <p>No practice sessions recorded yet.</p>
+                                <p class="text-sm mt-1">Student activity will appear here after practice.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Theme state variables
+        let userThemePreference = null; // null means use system preference
+        
+        // Set theme based on system preference or user choice
+        function setThemeBasedOnPreference() {
+            if (userThemePreference === 'dark' || (userThemePreference === null && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        }
+        
+        // Set theme on initial load
+        setThemeBasedOnPreference();
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Theme toggler
+            const themeToggle = document.getElementById('themeToggle');
+            themeToggle.addEventListener('click', function() {
+                if (document.documentElement.classList.contains('dark')) {
+                    document.documentElement.classList.remove('dark');
+                    userThemePreference = 'light';
+                } else {
+                    document.documentElement.classList.add('dark');
+                    userThemePreference = 'dark';
+                }
+            });
+            
+            // Listen for system preference changes
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+                if (userThemePreference === null) {
+                    if (event.matches) {
+                        document.documentElement.classList.add('dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                    }
+                }
+            });
+            
+            // DOM Elements - Navigation
+            const demoModeBtn = document.getElementById('demoModeBtn');
+            const practiceModeBtn = document.getElementById('practiceModeBtn');
+            const teacherDashboardBtn = document.getElementById('teacherDashboardBtn');
+            const demoMode = document.getElementById('demoMode');
+            const practiceMode = document.getElementById('practiceMode');
+            const teacherDashboard = document.getElementById('teacherDashboard');
+            
+            // DOM Elements - Demo Mode
+            const demoForm = document.getElementById('demoForm');
+            const stepBtnContainer = document.getElementById('stepBtnContainer');
+            const stepButton = document.getElementById('stepButton');
+            const resetButton = document.getElementById('resetButton');
+            const gridContainer = document.getElementById('gridContainer');
+            const explanationContainer = document.getElementById('explanationContainer');
+            const explanationDiv = document.getElementById('explanation');
+            const divisionGrid = document.getElementById('division-grid');
+            const stepsContainer = document.getElementById('stepsContainer');
+            const stepsDiv = document.getElementById('steps');
+            
+            // DOM Elements - Practice Mode
+            const studentNameInput = document.getElementById('student-name');
+            const practiceSettingsSection = document.getElementById('practiceSettingsSection');
+            const practiceSettingsForm = document.getElementById('practiceSettingsForm');
+            const backToSettingsBtn = document.getElementById('backToSettingsBtn');
+            const currentQuestionNum = document.getElementById('currentQuestionNum');
+            const totalQuestions = document.getElementById('totalQuestions');
+            const practiceInterface = document.getElementById('practiceInterface');
+            const practiceResults = document.getElementById('practiceResults');
+            const practiceGrid = document.getElementById('practice-grid');
+            const feedbackSection = document.getElementById('feedbackSection');
+            const feedbackElement = document.getElementById('feedback');
+            const timerDisplay = document.getElementById('timerDisplay');
+            const timerElement = document.getElementById('timer');
+            const toggleTimerBtn = document.getElementById('toggleTimerBtn');
+            const finishBtn = document.getElementById('finishBtn');
+            const nextQuestionBtn = document.getElementById('nextQuestionBtn');
+            const newPracticeBtn = document.getElementById('newPracticeBtn');
+            const resultsContent = document.getElementById('resultsContent');
+            
+            // DOM Elements - Teacher Dashboard
+            const studentFilter = document.getElementById('student-filter');
+            const assignmentForm = document.getElementById('assignmentForm');
+            const assignmentQuestionsSelect = document.getElementById('assignment-questions');
+            const questionsContainer = document.getElementById('questions-container');
+            const assignmentsList = document.getElementById('assignments-list');
+            const noAssignmentsMessage = document.getElementById('no-assignments-message');
+            const assignmentCount = document.getElementById('assignmentCount');
+            const assignmentSelect = document.getElementById('assignment-select');
+            const sessionsTable = document.getElementById('sessionsTable');
+            const sessionsTableBody = document.getElementById('sessionsTableBody');
+            const sessionCount = document.getElementById('sessionCount');
+            const clearDataBtn = document.getElementById('clearDataBtn');
+            const noDataMessage = document.getElementById('noDataMessage');
+            
+            // Constants
+            const MAX_TIMER_SECONDS = 120;
+            
+            //
+            // DATA MANAGEMENT
+            //
+            
+            // In-memory data storage
+            let practiceSessions = [];
+            let assignments = [];
+            let currentAssignment = null;
+            let currentPracticeQuestions = [];
+            let currentQuestionIndex = 0;
+            let isTimerVisible = false;
+            let studentNames = new Set();
+            let currentStudentFilter = 'all';
+            
+            // Add to student names set and update filter
+            function addStudentName(name) {
+                if (name && !studentNames.has(name)) {
+                    studentNames.add(name);
+                    updateStudentFilter();
+                }
+            }
+            
+            // Update student filter dropdown
+            function updateStudentFilter() {
+                studentFilter.innerHTML = '<option value="all">All students</option>';
+                
+                // Add options for each student
+                studentNames.forEach(name => {
+                    const option = document.createElement('option');
+                    option.value = name;
+                    option.textContent = name;
+                    studentFilter.appendChild(option);
+                });
+                
+                // Set current filter
+                studentFilter.value = currentStudentFilter;
+            }
+            
+            // Filter sessions by student name
+            function filterSessionsByStudent(name) {
+                if (name === 'all') {
+                    return practiceSessions;
+                }
+                
+                return practiceSessions.filter(session => session.studentName === name);
+            }
+            
+            // Clear all practice session data
+            function clearAllData() {
+                practiceSessions = [];
+                studentNames.clear();
+                currentStudentFilter = 'all';
+                
+                // Update UI
+                updateSessionsTable();
+                updateStudentFilter();
+                
+                showNotification('All session data has been cleared', 'success');
+            }
+            
+            // Show notification
+            function showNotification(message, type = 'info') {
+                // Create notification element
+                const notification = document.createElement('div');
+                notification.className = `fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg animate-fade-in z-50 ${
+                    type === 'success' ? 'bg-success-500 text-white' :
+                    type === 'error' ? 'bg-error-500 text-white' :
+                    'bg-primary-500 text-white'
+                }`;
+                
+                // Add message and icon
+                notification.innerHTML = `
+                    <div class="flex items-center">
+                        ${type === 'success' ? 
+                            '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>' :
+                            type === 'error' ?
+                            '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>' :
+                            '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>'
+                        }
+                        ${message}
+                    </div>
+                `;
+                
+                // Add to document
+                document.body.appendChild(notification);
+                
+                // Remove after 3 seconds
+                setTimeout(() => {
+                    notification.classList.add('opacity-0');
+                    setTimeout(() => {
+                        notification.remove();
+                    }, 300);
+                }, 3000);
+            }
+            
+            //
+            // DEMO MODE FUNCTIONALITY
+            //
+            
+            // Demo state variables
+            let demoDividend, demoDivisor, demoDividendStr, demoDivisorStr;
+            let demoStartCol;
+            let demoCurrentStepIndex = -1;
+            let demoDivisionSteps = [];
+            
+            // Create the empty 10x10 grid for demo
+            function createEmptyDemoGrid() {
+                divisionGrid.innerHTML = '';
+                for (let row = 0; row < 10; row++) {
+                    for (let col = 0; col < 10; col++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'grid-cell';
+                        cell.dataset.row = row;
+                        cell.dataset.col = col;
+                        divisionGrid.appendChild(cell);
+                    }
+                }
+            }
+            
+            // Set cell value and optionally add horizontal line for demo
+            function setDemoCellValue(row, col, value, isHLine = false) {
+                if (row < 0 || row >= 10 || col < 0 || col >= 10) return; // Validate position
+                
+                const cell = divisionGrid.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                if (cell) {
+                    cell.textContent = value;
+                    if (isHLine) {
+                        cell.classList.add('h-line');
+                    }
+                }
+            }
+            
+            // Add horizontal line to cell without changing content for demo
+            function addDemoHLine(row, col) {
+                if (row < 0 || row >= 10 || col < 0 || col >= 10) return; // Validate position
+                
+                const cell = divisionGrid.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                if (cell) {
+                    cell.classList.add('h-line');
+                }
+            }
+            
+            // Add division line to the right side of the cell for demo
+            function addDemoDivisionLine(row, col) {
+                if (row < 0 || row >= 10 || col < 0 || col >= 10) return; // Validate position
+                
+                const cell = divisionGrid.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                if (cell) {
+                    cell.classList.add('division-line');
+                }
+            }
+            
+            // Initialize the demo
+            function initializeDemo() {
+                // Reset state
+                demoCurrentStepIndex = -1;
+                demoDivisionSteps = [];
+                
+                // Create an empty grid
+                createEmptyDemoGrid();
+                
+                // Get and validate inputs
+                demoDividend = parseInt(document.getElementById('demo-dividend').value, 10);
+                demoDivisor = parseInt(document.getElementById('demo-divisor').value, 10);
+                
+                if (isNaN(demoDividend) || isNaN(demoDivisor) || demoDividend < 1 || demoDividend > 9999 || demoDivisor < 1 || demoDivisor > 999) {
+                    showNotification('Please enter valid numbers. Dividend must be 1-9999 and divisor must be 1-999.', 'error');
+                    return false;
+                }
+                
+                demoDividendStr = demoDividend.toString();
+                demoDivisorStr = demoDivisor.toString();
+                
+                // Place divisor in the grid (at column 0)
+                for (let i = 0; i < demoDivisorStr.length; i++) {
+                    setDemoCellValue(1, i, demoDivisorStr[i]);
+                    // If this is the last digit of the divisor, add division line
+                    if (i === demoDivisorStr.length - 1) {
+                        addDemoDivisionLine(1, i);
+                    }
+                }
+                
+                // Place dividend immediately after divisor
+                demoStartCol = demoDivisorStr.length;
+                for (let i = 0; i < demoDividendStr.length; i++) {
+                    setDemoCellValue(1, demoStartCol + i, demoDividendStr[i]);
+                }
+                
+                // Add horizontal line above the dividend
+                for (let i = 0; i < demoDividendStr.length; i++) {
+                    addDemoHLine(0, demoStartCol + i);
+                }
+                
+                // Create all the steps
+                createDemoDivisionSteps();
+                
+                // Show containers
+                stepBtnContainer.classList.remove('hidden');
+                gridContainer.classList.remove('hidden');
+                explanationContainer.classList.remove('hidden');
+                stepsContainer.classList.remove('hidden');
+                
+                // Show initial explanation
+                explanationDiv.innerHTML = `<p class="mb-3 font-semibold">Dividing ${demoDividend} by ${demoDivisor}</p>
+                    <p class="mb-2">We've set up the division. The divisor ${demoDivisor} is on the left, and the dividend ${demoDividend} is on the right.</p>
+                    <p>Click the "Next Step" button to see each step of the long division process.</p>`;
+                
+                // Reset step button state
+                stepButton.disabled = false;
+                stepButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                
+                return true;
+            }
+            
+            // Create all division steps for the demo
+            function createDemoDivisionSteps() {
+                let currentIndex = 0;
+                let currentNum = '';
+                let quotient = '';
+                let currentRow = 2;
+                
+                // First, determine how many initial digits we need for the first division
+                while (currentIndex < demoDividendStr.length) {
+                    currentNum += demoDividendStr[currentIndex];
+                    if (parseInt(currentNum) >= demoDivisor || currentIndex === demoDividendStr.length - 1) {
+                        break;
+                    }
+                    currentIndex++;
+                }
+                
+                // Main division loop
+                while (currentIndex < demoDividendStr.length) {
+                    let currentNumber = parseInt(currentNum);
+                    
+                    // If current number is less than divisor and we're not at the end
+                    if (currentNumber < demoDivisor && currentIndex < demoDividendStr.length - 1) {
+                        // Add 0 to quotient step
+                        demoDivisionSteps.push({
+                            type: 'add-zero',
+                            row: 0,
+                            col: demoStartCol + currentIndex,
+                            currentNumber,
+                            divisor: demoDivisor
+                        });
+                        
+                        quotient += '0';
+                        
+                        // Bring down next digit step
+                        currentIndex++;
+                        currentNum += demoDividendStr[currentIndex];
+                        
+                        demoDivisionSteps.push({
+                            type: 'bring-down',
+                            row: currentRow,
+                            col: demoStartCol + currentIndex,
+                            value: demoDividendStr[currentIndex],
+                            newNum: currentNum
+                        });
+                        
+                        continue;
+                    }
+                    
+                    // Calculate quotient digit
+                    const quotientDigit = Math.floor(currentNumber / demoDivisor);
+                    
+                    if (currentNumber >= demoDivisor) {
+                        quotient += quotientDigit.toString();
+                        
+                        // Step: Add quotient digit
+                        demoDivisionSteps.push({
+                            type: 'add-quotient',
+                            row: 0,
+                            col: demoStartCol + currentIndex,
+                            value: quotientDigit.toString(),
+                            currentNumber,
+                            divisor: demoDivisor,
+                            quotientDigit
+                        });
+                    } else if (quotient === '') {
+                        quotient = '0';
+                        
+                        // Step: Add 0 to quotient
+                        demoDivisionSteps.push({
+                            type: 'add-zero-quotient',
+                            row: 0,
+                            col: demoStartCol + currentIndex,
+                            currentNumber,
+                            divisor: demoDivisor
+                        });
+                    }
+                    
+                    // Calculate product
+                    const product = quotientDigit * demoDivisor;
+                    const productStr = product.toString();
+                    
+                    // Align product digits under the current dividend portion
+                    const productStartCol = demoStartCol + currentIndex - productStr.length + 1;
+                    
+                    // Step: Add product
+                    demoDivisionSteps.push({
+                        type: 'add-product',
+                        row: currentRow,
+                        startCol: productStartCol,
+                        product,
+                        productStr,
+                        currentNumber,
+                        divisor: demoDivisor,
+                        quotientDigit
+                    });
+                    
+                    // Step: Add horizontal line
+                    demoDivisionSteps.push({
+                        type: 'add-line',
+                        row: currentRow,
+                        startCol: Math.max(demoStartCol, productStartCol),
+                        endCol: demoStartCol + currentIndex,
+                        product
+                    });
+                    
+                    // Calculate subtraction
+                    const subtraction = currentNumber - product;
+                    const subtractionStr = subtraction.toString();
+                    
+                    // Step: Add subtraction result
+                    demoDivisionSteps.push({
+                        type: 'add-subtraction',
+                        row: currentRow + 1,
+                        startCol: demoStartCol + currentIndex - subtractionStr.length + 1,
+                        subtraction,
+                        subtractionStr,
+                        currentNumber,
+                        product
+                    });
+                    
+                    // If we're not at the end, bring down next digit
+                    if (currentIndex < demoDividendStr.length - 1) {
+                        currentIndex++;
+                        currentNum = subtraction.toString() + demoDividendStr[currentIndex];
+                        
+                        // Step: Bring down digit
+                        demoDivisionSteps.push({
+                            type: 'bring-down',
+                            row: currentRow + 1,
+                            col: demoStartCol + currentIndex,
+                            value: demoDividendStr[currentIndex],
+                            newNum: currentNum
+                        });
+                        
+                        currentRow += 2;
+                    } else {
+                        // Final step with remainder
+                        const finalRemainder = subtraction;
+                        if (finalRemainder > 0) {
+                            demoDivisionSteps.push({
+                                type: 'final',
+                                quotient,
+                                remainder: finalRemainder,
+                                dividend: demoDividend,
+                                divisor: demoDivisor
+                            });
+                        } else {
+                            demoDivisionSteps.push({
+                                type: 'final',
+                                quotient,
+                                remainder: 0,
+                                dividend: demoDividend,
+                                divisor: demoDivisor
+                            });
+                        }
+                        break;
+                    }
+                }
+            }
+            
+            // Execute the next demo step
+            function executeDemoNextStep() {
+                // Increment step counter
+                demoCurrentStepIndex++;
+                
+                // Check if we've reached the end
+                if (demoCurrentStepIndex >= demoDivisionSteps.length) {
+                    return false;
+                }
+                
+                const step = demoDivisionSteps[demoCurrentStepIndex];
+                
+                // Execute the appropriate step based on its type
+                switch (step.type) {
+                    case 'add-zero':
+                        setDemoCellValue(step.row, step.col, '0');
+                        
+                        explanationDiv.innerHTML = `<p class="mb-3 font-medium text-primary-500">Step ${demoCurrentStepIndex + 1}</p>
+                            <p class="mb-2">${step.currentNumber} is less than ${step.divisor}, so we write 0 in the quotient.</p>
+                            <p>We then bring down the next digit.</p>`;
+                        
+                        // Add to steps list
+                        const zeroStepDiv = document.createElement('div');
+                        zeroStepDiv.className = 'step-section p-4 bg-white dark:bg-neutral-700 rounded-lg shadow-sm animate-fade-in';
+                        zeroStepDiv.innerHTML = `
+                            <h3 class="font-medium text-primary-500 mb-2">Step ${demoCurrentStepIndex + 1}</h3>
+                            <p class="mb-1 text-sm">${step.currentNumber} is less than ${step.divisor}, so we write 0 in the quotient.</p>
+                            <p class="mb-1 text-sm">Bring down the next digit.</p>
+                        `;
+                        stepsDiv.prepend(zeroStepDiv);
+                        break;
+                        
+                    case 'add-quotient':
+                        setDemoCellValue(step.row, step.col, step.value);
+                        
+                        explanationDiv.innerHTML = `<p class="mb-3 font-medium text-primary-500">Step ${demoCurrentStepIndex + 1}</p>
+                            <p class="mb-2">Divide ${step.currentNumber} by ${step.divisor}.</p>
+                            <p class="mb-2">${step.divisor} goes into ${step.currentNumber} ${step.quotientDigit} times.</p>
+                            <p>Write ${step.quotientDigit} in the quotient above.</p>`;
+                        
+                        // Add to steps list
+                        const quotientStepDiv = document.createElement('div');
+                        quotientStepDiv.className = 'step-section p-4 bg-white dark:bg-neutral-700 rounded-lg shadow-sm animate-fade-in';
+                        quotientStepDiv.innerHTML = `
+                            <h3 class="font-medium text-primary-500 mb-2">Step ${demoCurrentStepIndex + 1}</h3>
+                            <p class="mb-1 text-sm">Divide ${step.currentNumber} by ${step.divisor}</p>
+                            <p class="mb-1 text-sm">${step.divisor} goes into ${step.currentNumber} ${step.quotientDigit} times</p>
+                            <p class="mb-1 text-sm">Write ${step.quotientDigit} in the quotient</p>
+                        `;
+                        stepsDiv.prepend(quotientStepDiv);
+                        break;
+                        
+                    case 'add-zero-quotient':
+                        setDemoCellValue(step.row, step.col, '0');
+                        
+                        explanationDiv.innerHTML = `<p class="mb-3 font-medium text-primary-500">Step ${demoCurrentStepIndex + 1}</p>
+                            <p>${step.currentNumber} is less than ${step.divisor}, so we write 0 in the quotient.</p>`;
+                        
+                        // Add to steps list
+                        const zeroQuotientStepDiv = document.createElement('div');
+                        zeroQuotientStepDiv.className = 'step-section p-4 bg-white dark:bg-neutral-700 rounded-lg shadow-sm animate-fade-in';
+                        zeroQuotientStepDiv.innerHTML = `
+                            <h3 class="font-medium text-primary-500 mb-2">Step ${demoCurrentStepIndex + 1}</h3>
+                            <p class="mb-1 text-sm">${step.currentNumber} is less than ${step.divisor}, so we write 0 in the quotient</p>
+                        `;
+                        stepsDiv.prepend(zeroQuotientStepDiv);
+                        break;
+                        
+                    case 'add-product':
+                        // Add subtraction symbol next to the product
+                        const subCol = step.startCol - 1;
+                        if (subCol >= 0) {
+                            setDemoCellValue(step.row, subCol, '−');
+                        }
+                        
+                        for (let i = 0; i < step.productStr.length; i++) {
+                            setDemoCellValue(step.row, step.startCol + i, step.productStr[i]);
+                        }
+                        
+                        explanationDiv.innerHTML = `<p class="mb-3 font-medium text-primary-500">Step ${demoCurrentStepIndex + 1}</p>
+                            <p class="mb-2">Multiply: ${step.divisor} × ${step.quotientDigit} = ${step.product}</p>
+                            <p>Write ${step.product} below the digits we're dividing.</p>`;
+                        
+                        // Add to steps list
+                        const productStepDiv = document.createElement('div');
+                        productStepDiv.className = 'step-section p-4 bg-white dark:bg-neutral-700 rounded-lg shadow-sm animate-fade-in';
+                        productStepDiv.innerHTML = `
+                            <h3 class="font-medium text-primary-500 mb-2">Step ${demoCurrentStepIndex + 1}</h3>
+                            <p class="mb-1 text-sm">Multiply: ${step.divisor} × ${step.quotientDigit} = ${step.product}</p>
+                            <p class="mb-1 text-sm">Write ${step.product} below the current digits</p>
+                        `;
+                        stepsDiv.prepend(productStepDiv);
+                        break;
+                        
+                    case 'add-line':
+                        for (let i = step.startCol; i <= step.endCol; i++) {
+                            addDemoHLine(step.row, i);
+                        }
+                        
+                        explanationDiv.innerHTML = `<p class="mb-3 font-medium text-primary-500">Step ${demoCurrentStepIndex + 1}</p>
+                            <p>Draw a line under ${step.product} for the subtraction.</p>`;
+                        
+                        // Add to steps list
+                        const lineStepDiv = document.createElement('div');
+                        lineStepDiv.className = 'step-section p-4 bg-white dark:bg-neutral-700 rounded-lg shadow-sm animate-fade-in';
+                        lineStepDiv.innerHTML = `
+                            <h3 class="font-medium text-primary-500 mb-2">Step ${demoCurrentStepIndex + 1}</h3>
+                            <p class="mb-1 text-sm">Draw a line under ${step.product}</p>
+                        `;
+                        stepsDiv.prepend(lineStepDiv);
+                        break;
+                        
+                    case 'add-subtraction':
+                        // Subtraction symbol is now added with the product, not the result
+                        for (let i = 0; i < step.subtractionStr.length; i++) {
+                            setDemoCellValue(step.row, step.startCol + i, step.subtractionStr[i]);
+                        }
+                        
+                        explanationDiv.innerHTML = `<p class="mb-3 font-medium text-primary-500">Step ${demoCurrentStepIndex + 1}</p>
+                            <p class="mb-2">Subtract: ${step.currentNumber} - ${step.product} = ${step.subtraction}</p>
+                            <p>Write ${step.subtraction} below the line.</p>`;
+                        
+                        // Add to steps list
+                        const subtractionStepDiv = document.createElement('div');
+                        subtractionStepDiv.className = 'step-section p-4 bg-white dark:bg-neutral-700 rounded-lg shadow-sm animate-fade-in';
+                        subtractionStepDiv.innerHTML = `
+                            <h3 class="font-medium text-primary-500 mb-2">Step ${demoCurrentStepIndex + 1}</h3>
+                            <p class="mb-1 text-sm">Subtract: ${step.currentNumber} - ${step.product} = ${step.subtraction}</p>
+                            <p class="mb-1 text-sm">Write ${step.subtraction} below the line</p>
+                        `;
+                        stepsDiv.prepend(subtractionStepDiv);
+                        break;
+                        
+                    case 'bring-down':
+                        setDemoCellValue(step.row, step.col, step.value);
+                        
+                        explanationDiv.innerHTML = `<p class="mb-3 font-medium text-primary-500">Step ${demoCurrentStepIndex + 1}</p>
+                            <p class="mb-2">Bring down the next digit: ${step.value}</p>
+                            <p>Our new dividend for the next step is ${step.newNum}.</p>`;
+                        
+                        // Add to steps list
+                        const bringDownStepDiv = document.createElement('div');
+                        bringDownStepDiv.className = 'step-section p-4 bg-white dark:bg-neutral-700 rounded-lg shadow-sm animate-fade-in';
+                        bringDownStepDiv.innerHTML = `
+                            <h3 class="font-medium text-primary-500 mb-2">Step ${demoCurrentStepIndex + 1}</h3>
+                            <p class="mb-1 text-sm">Bring down the next digit: ${step.value}</p>
+                            <p class="mb-1 text-sm">New dividend for next step: ${step.newNum}</p>
+                        `;
+                        stepsDiv.prepend(bringDownStepDiv);
+                        break;
+                        
+                    case 'final':
+                        explanationDiv.innerHTML = `<p class="mb-3 font-medium text-success-500">Division Complete</p>
+                            <p class="mb-2">The long division is now complete.</p>
+                            <p class="font-medium">Result: ${step.dividend} ÷ ${step.divisor} = ${step.quotient}`;
+                            
+                        if (step.remainder > 0) {
+                            explanationDiv.innerHTML += ` with remainder ${step.remainder}`;
+                        }
+                        
+                        explanationDiv.innerHTML += `</p>`;
+                        
+                        // Add to steps list
+                        const finalStepDiv = document.createElement('div');
+                        finalStepDiv.className = 'step-section p-4 bg-white dark:bg-neutral-700 rounded-lg shadow-sm animate-fade-in';
+                        finalStepDiv.innerHTML = `
+                            <h3 class="font-medium text-success-500 mb-2">Final Result</h3>
+                            <p class="mb-1 text-sm">${step.dividend} ÷ ${step.divisor} = ${step.quotient}`;
+                                
+                        if (step.remainder > 0) {
+                            finalStepDiv.innerHTML += ` with remainder ${step.remainder}`;
+                        }
+                        
+                        finalStepDiv.innerHTML += `</p>`;
+                        stepsDiv.prepend(finalStepDiv);
+                        
+                        // Disable the step button
+                        stepButton.disabled = true;
+                        stepButton.classList.add('opacity-50', 'cursor-not-allowed');
+                        break;
+                }
+                
+                return true;
+            }
+            
+            //
+            // PRACTICE MODE FUNCTIONALITY
+            //
+            
+            // Practice state variables
+            let dividend, divisor, dividendStr, divisorStr;
+            let startCol;
+            let currentRow = 2;
+            let timerInterval;
+            let timerValue = 0;
+            let hasRemainder = false;
+            let currentStudentName = '';
+            
+            // Toggle timer visibility
+            function toggleTimer() {
+                isTimerVisible = !isTimerVisible;
+                
+                if (isTimerVisible) {
+                    timerDisplay.classList.remove('hidden');
+                } else {
+                    timerDisplay.classList.add('hidden');
+                }
+            }
+            
+            // Generate a random division problem based on criteria
+            function generateRandomProblem(dividendDigits, divisorDigits, remainderOption) {
+                let randomDividend, randomDivisor, problemHasRemainder;
+                
+                do {
+                    // Generate random dividend and divisor based on digit count
+                    const minDividend = Math.pow(10, dividendDigits - 1);
+                    const maxDividend = Math.pow(10, dividendDigits) - 1;
+                    randomDividend = Math.floor(Math.random() * (maxDividend - minDividend + 1)) + minDividend;
+                    
+                    const minDivisor = Math.pow(10, divisorDigits - 1);
+                    const maxDivisor = Math.pow(10, divisorDigits) - 1;
+                    randomDivisor = Math.floor(Math.random() * (maxDivisor - minDivisor + 1)) + minDivisor;
+                    
+                    // Check if it matches the remainder option
+                    problemHasRemainder = randomDividend % randomDivisor !== 0;
+                    
+                } while (
+                    (remainderOption === 'with' && !problemHasRemainder) || 
+                    (remainderOption === 'without' && problemHasRemainder)
+                );
+                
+                return {
+                    dividend: randomDividend,
+                    divisor: randomDivisor
+                };
+            }
+            
+            // Generate practice questions based on settings
+            function generatePracticeQuestions() {
+                console.log("Generating practice questions");
+                
+                // Reset practice session data for a new session
+                practiceSessionData = null;
+                
+                // Get settings
+                const dividendDigits = parseInt(document.getElementById('dividend-digits').value);
+                const divisorDigits = parseInt(document.getElementById('divisor-digits').value);
+                const remainderOption = document.getElementById('remainder-option').value;
+                const questionCount = parseInt(document.getElementById('question-count').value);
+                const assignmentValue = document.getElementById('assignment-select').value;
+                
+                // Get student name
+                currentStudentName = studentNameInput.value.trim();
+                if (!currentStudentName) {
+                    showNotification('Please enter your name before starting practice', 'error');
+                    studentNameInput.focus();
+                    return false;
+                }
+                
+                // Add to student names set
+                addStudentName(currentStudentName);
+                
+                // If an assignment is selected, use that
+                if (assignmentValue && assignmentValue !== '') {
+                    currentAssignment = assignments.find(a => a.id === assignmentValue);
+                    currentPracticeQuestions = currentAssignment.questions.map(q => ({
+                        dividend: q.dividend,
+                        divisor: q.divisor
+                    }));
+                } else {
+                    // Otherwise generate random questions based on settings
+                    currentAssignment = null;
+                    currentPracticeQuestions = [];
+                    
+                    for (let i = 0; i < questionCount; i++) {
+                        currentPracticeQuestions.push(
+                            generateRandomProblem(dividendDigits, divisorDigits, remainderOption)
+                        );
+                    }
+                }
+                
+                // Reset the current question index
+                currentQuestionIndex = 0;
+                
+                // Update the question display
+                updateQuestionDisplay();
+                
+                return true;
+            }
+            
+            // Update the question display
+            function updateQuestionDisplay() {
+                if (currentPracticeQuestions.length === 0) return;
+                
+                const currentQuestion = currentPracticeQuestions[currentQuestionIndex];
+                
+                // Update question numbers
+                currentQuestionNum.textContent = currentQuestionIndex + 1;
+                totalQuestions.textContent = currentPracticeQuestions.length;
+                
+                // We no longer update the removed practiceQuestionDisplay
+                // as the question is shown directly in the practice interface
+            }
+            
+            // Create the empty 10x10 grid for practice
+            function createEmptyPracticeGrid() {
+                practiceGrid.innerHTML = '';
+                for (let row = 0; row < 10; row++) {
+                    for (let col = 0; col < 10; col++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'grid-cell';
+                        cell.dataset.row = row;
+                        cell.dataset.col = col;
+                        practiceGrid.appendChild(cell);
+                    }
+                }
+            }
+            
+            // Set cell value and optionally add horizontal line for practice
+            function setPracticeCellValue(row, col, value, isHLine = false) {
+                if (row < 0 || row >= 10 || col < 0 || col >= 10) return; // Validate position
+                
+                const cell = practiceGrid.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                if (cell) {
+                    cell.textContent = value;
+                    if (isHLine) {
+                        cell.classList.add('h-line');
+                    }
+                }
+            }
+            
+            // Add horizontal line to cell without changing content for practice
+            function addPracticeHLine(row, col) {
+                if (row < 0 || row >= 10 || col < 0 || col >= 10) return; // Validate position
+                
+                const cell = practiceGrid.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                if (cell) {
+                    cell.classList.add('h-line');
+                }
+            }
+            
+            // Add division line to the right side of the cell for practice
+            function addPracticeDivisionLine(row, col) {
+                if (row < 0 || row >= 10 || col < 0 || col >= 10) return; // Validate position
+                
+                const cell = practiceGrid.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                if (cell) {
+                    cell.classList.add('division-line');
+                }
+            }
+            
+            // Replace a cell with an input field for practice
+            function addInputField(row, col, maxlength = 1, placeholder = '') {
+                if (row < 0 || row >= 10 || col < 0 || col >= 10) return null; // Validate position
+                
+                const cell = practiceGrid.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                if (cell) {
+                    cell.innerHTML = '';
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.maxLength = maxlength;
+                    input.className = 'grid-input';
+                    input.dataset.row = row;
+                    input.dataset.col = col;
+                    input.placeholder = placeholder;
+                    
+                    cell.appendChild(input);
+                    return input;
+                }
+                return null;
+            }
+            
+            // Add a subtraction symbol in a cell
+            function addSubtractionSymbol(row, col) {
+                if (row < 0 || row >= 10 || col < 0 || col >= 10) return; // Validate position
+                
+                const cell = practiceGrid.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                if (cell) {
+                    const subtraction = document.createElement('span');
+                    subtraction.className = 'subtraction-symbol';
+                    subtraction.textContent = '−';
+                    cell.appendChild(subtraction);
+                }
+            }
+            
+            // Add horizontal lines at regular intervals for subtraction steps
+            function addSubtractionLines() {
+                console.log("Adding subtraction lines");
+                // Fix: Add horizontal lines directly under the product rows (rows 2, 4, 6, 8)
+                for (let row = 2; row < 9; row += 2) {
+                    for (let col = startCol; col < startCol + dividendStr.length; col++) {
+                        addPracticeHLine(row, col);
+                    }
+                }
+            }
+            
+            // Initialize practice mode with a question
+            function initializePractice() {
+                console.log("initializePractice() called");
+                // Get the current question
+                const currentQuestion = currentPracticeQuestions[currentQuestionIndex];
+                console.log("Current question:", currentQuestion);
+                
+                // Set the question number display
+                document.getElementById('currentQuestionNum').textContent = (currentQuestionIndex + 1).toString();
+                document.getElementById('totalQuestions').textContent = currentPracticeQuestions.length.toString();
+                
+                // Set up the division problem
+                dividend = currentQuestion.dividend;
+                divisor = currentQuestion.divisor;
+                dividendStr = dividend.toString();
+                divisorStr = divisor.toString();
+                console.log(`Setting up problem: ${dividend} ÷ ${divisor}`);
+                
+                // Set up the grid dimensions
+                startCol = 1; // Start column for the problem on the grid
+                
+                // Generate the grid
+                console.log("Creating empty practice grid");
+                createEmptyPracticeGrid();
+                console.log("Configuring practice grid");
+                configurePracticeGrid();
+                
+                // Show the practice interface
+                console.log("Showing practice interface");
+                practiceInterface.classList.remove('hidden');
+                
+                // Set feedback message
+                feedbackElement.innerHTML = "Fill in your solution or click <strong>Next</strong> to continue";
+                
+                return true;
+            }
+            
+            // Evaluate if the steps of the division are correct
+            function evaluateStepsCorrectness() {
+                // Check if the answer input has a value
+                const answerInput = document.getElementById('practice-answer');
+                if (answerInput && answerInput.value.trim() !== '') {
+                    return { isComplete: true };
+                }
+                
+                // Original evaluation logic
+                const workArea = document.getElementById('practice-grid');
+                if (!workArea) return { isComplete: false };
+                
+                // ... rest of existing function ...
+            }
+            
+            // Check the practice solution when finished
+            function checkPracticeSolution() {
+                // Stop the timer
+                clearInterval(timerInterval);
+                
+                // Collect all inputs
+                const inputs = document.querySelectorAll('.grid-input');
+                
+                // Calculate the correct answer
+                const quotientValue = Math.floor(dividend / divisor);
+                const remainderValue = dividend % divisor;
+                
+                // Extract user's answer from the quotient row
+                let userQuotient = '';
+                for (let i = 0; i < dividendStr.length; i++) {
+                    const quotientInput = document.querySelector(`.grid-input[data-row="0"][data-col="${startCol + i}"]`);
+                    if (quotientInput && quotientInput.value.trim()) {
+                        userQuotient += quotientInput.value.trim();
+                    }
+                }
+                
+                // Extract user's remainder if applicable
+                let userRemainder = '';
+                if (hasRemainder) {
+                    const remainderCol = startCol + dividendStr.length;
+                    
+                    // For multi-digit divisors, collect from all remainder input boxes
+                    if (divisorStr.length >= 2) {
+                        for (let i = 0; i < divisorStr.length; i++) {
+                            const remainderInput = document.querySelector(`.grid-input[data-row="0"][data-col="${remainderCol + 1 + i}"]`);
+                            if (remainderInput && remainderInput.value.trim()) {
+                                userRemainder += remainderInput.value.trim();
+                            }
+                        }
+                    } else {
+                        // Single digit divisor - just get the single remainder input
+                        const remainderInput = document.querySelector(`.grid-input[data-row="0"][data-col="${remainderCol + 1}"]`);
+                        if (remainderInput && remainderInput.value.trim()) {
+                            userRemainder = remainderInput.value.trim();
+                        }
+                    }
+                }
+                
+                // Determine if the answer is correct (for remainder problems, both quotient and remainder must be correct)
+                const isAnswerCorrect = parseInt(userQuotient) === quotientValue && 
+                    (!hasRemainder || parseInt(userRemainder) === remainderValue);
+                
+                // Determine if the steps are correct
+                const areStepsCorrect = evaluateStepsCorrectness();
+                
+                // Format the expected answer string for display
+                const expectedAnswer = hasRemainder ? 
+                    `${quotientValue} R ${remainderValue}` : 
+                    `${quotientValue}`;
+                
+                // Format the user's answer string for display and saving
+                let userAnswer;
+                if (hasRemainder && userRemainder) {
+                    userAnswer = `${userQuotient} R ${userRemainder}`;
+                } else if (hasRemainder) {
+                    userAnswer = `${userQuotient} (missing remainder)`;
+                } else {
+                    userAnswer = userQuotient || "No answer provided";
+                }
+                
+                // Get formatted time string
+                const timeDisplayStr = timerValue >= MAX_TIMER_SECONDS ? 
+                    `${MAX_TIMER_SECONDS} seconds +` : 
+                    `${timerValue} seconds`;
+                
+                // For data storage, cap at MAX_TIMER_SECONDS
+                const timeRecorded = Math.min(timerValue, MAX_TIMER_SECONDS);
+                
+                // Capture student work for teacher review
+                const studentWorkData = [];
+                
+                // Collect all grid inputs with their values
+                practiceGrid.querySelectorAll('.grid-input').forEach(input => {
+                    if (input.value.trim()) {
+                        studentWorkData.push({
+                            row: parseInt(input.dataset.row),
+                            col: parseInt(input.dataset.col),
+                            value: input.value.trim()
+                        });
+                    }
+                });
+                
+                // Create the result message
+                let resultMessage = `
+                    <div class="flex justify-center mb-4">
+                        <div class="number-card p-4 bg-white dark:bg-neutral-700 inline-flex gap-2 items-center shadow-sm">
+                            <span class="text-2xl font-mono font-bold">${dividend}</span>
+                            <span class="text-2xl">÷</span>
+                            <span class="text-2xl font-mono font-bold">${divisor}</span>
+                            <span class="text-2xl">=</span>
+                            <span class="text-2xl font-mono font-bold">${expectedAnswer}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div class="p-4 bg-white dark:bg-neutral-700 rounded-lg shadow-sm">
+                            <p class="mb-2 font-medium">Your Answer</p>
+                            <p class="text-lg font-mono">${userAnswer}</p>
+                        </div>
+                        
+                        <div class="p-4 bg-white dark:bg-neutral-700 rounded-lg shadow-sm">
+                            <p class="mb-2 font-medium">Time Taken</p>
+                            <p class="text-lg">${timeDisplayStr}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="p-4 ${isAnswerCorrect ? 'bg-success-50 dark:bg-success-900/20' : 'bg-error-50 dark:bg-error-900/20'} rounded-lg shadow-sm">
+                        <div class="flex items-center mb-2">
+                            <span class="font-medium mr-2">Answer</span>
+                            ${isAnswerCorrect ? 
+                                '<span class="px-2 py-0.5 bg-success-100 dark:bg-success-800 text-success-700 dark:text-success-200 text-xs font-medium rounded">Correct</span>' : 
+                                '<span class="px-2 py-0.5 bg-error-100 dark:bg-error-800 text-error-700 dark:text-error-200 text-xs font-medium rounded">Incorrect</span>'}
+                        </div>
+                        <p class="text-sm">${isAnswerCorrect ? 
+                            'Great job! Your final answer is correct.' : 
+                            'The answer is not correct. Try again with another problem.'}</p>
+                    </div>
+                `;
+                
+                // Update the result content
+                resultsContent.innerHTML = resultMessage;
+                
+                // Save practice session data with properly formatted answer
+                const sessionData = {
+                    studentName: currentStudentName,
+                    question: `${dividend} ÷ ${divisor}`,
+                    dividend: dividend,
+                    divisor: divisor,
+                    expectedAnswer: expectedAnswer,
+                    userAnswer: userAnswer,
+                    isAnswerCorrect: isAnswerCorrect,
+                    isStepsCorrect: areStepsCorrect,
+                    timeTaken: timeRecorded,
+                    timeDisplay: timeDisplayStr,
+                    startCol: startCol,
+                    studentWork: studentWorkData, // Store the student's work
+                    sessionId: Date.now() // Add a unique ID for this session
+                };
+                
+                savePracticeSession(sessionData);
+                
+                // Disable all inputs
+                inputs.forEach(input => {
+                    input.disabled = true;
+                });
+                
+                // Show results section
+                practiceInterface.classList.add('hidden');
+                practiceResults.classList.remove('hidden');
+                
+                // Keep track of all practice results for final summary
+                if (!practiceSessionData) {
+                    practiceSessionData = {
+                        studentName: currentStudentName,
+                        date: new Date().toLocaleString(),
+                        sessions: []
+                    };
+                }
+                
+                practiceSessionData.sessions.push(sessionData);
+                
+                // If there are more questions, show the next question button and auto-advance
+                if (currentQuestionIndex < currentPracticeQuestions.length - 1) {
+                    nextQuestionBtn.classList.remove('hidden');
+                    
+                    // Auto-advance after 0.5 seconds
+                    setTimeout(() => {
+                        moveToNextQuestion();
+                    }, 500);
+                } else {
+                    nextQuestionBtn.classList.add('hidden');
+                    
+                    // Add final summary for all questions
+                    let summaryHtml = `
+                        <div class="mt-6 p-4 bg-white dark:bg-neutral-700 rounded-lg shadow-sm">
+                            <h3 class="font-semibold text-lg mb-3 text-primary-600 dark:text-primary-400">Practice Summary</h3>
+                            <div class="space-y-3">
+                    `;
+                    
+                    let correctCount = 0;
+                    practiceSessionData.sessions.forEach((session, index) => {
+                        if (session.isAnswerCorrect) correctCount++;
+                        
+                        summaryHtml += `
+                            <div class="p-3 ${index % 2 === 0 ? 'bg-neutral-50 dark:bg-neutral-600' : 'bg-white dark:bg-neutral-700'} rounded-lg border border-neutral-200 dark:border-neutral-600">
+                                <div class="flex justify-between items-center">
+                                    <div class="font-medium">Question ${index + 1}: ${session.dividend} ÷ ${session.divisor}</div>
+                                    <div class="px-2 py-0.5 ${session.isAnswerCorrect ? 
+                                        'bg-success-100 dark:bg-success-800 text-success-700 dark:text-success-200' : 
+                                        'bg-error-100 dark:bg-error-800 text-error-700 dark:text-error-200'} text-xs font-medium rounded">
+                                        ${session.isAnswerCorrect ? 'Correct' : 'Incorrect'}
+                                    </div>
+                                </div>
+                                <div class="mt-1 text-sm flex justify-between">
+                                    <div>Your answer: <span class="font-mono">${session.userAnswer}</span></div>
+                                    <div>Correct answer: <span class="font-mono">${session.expectedAnswer}</span></div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    // Calculate total score
+                    const scorePercent = Math.round((correctCount / practiceSessionData.sessions.length) * 100);
+                    
+                    summaryHtml += `
+                            </div>
+                            <div class="mt-4 p-3 bg-primary-50 dark:bg-primary-900/30 rounded-lg text-center">
+                                <div class="font-semibold text-lg">Final Score: ${correctCount}/${practiceSessionData.sessions.length} (${scorePercent}%)</div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Append the summary to the results content
+                    resultsContent.insertAdjacentHTML('beforeend', summaryHtml);
+                }
+                
+                return isAnswerCorrect;
+            }
+            
+            // Move to the next question
+            function moveToNextQuestion() {
+                currentQuestionIndex++;
+                
+                if (currentQuestionIndex < currentPracticeQuestions.length) {
+                    practiceResults.classList.add('hidden');
+                    practiceInterface.classList.remove('hidden');
+                    initializePractice();
+                }
+            }
+            
+            // Start the timer
+            function startTimer() {
+                timerValue = 0;
+                timerElement.textContent = timerValue;
+                
+                timerInterval = setInterval(function() {
+                    timerValue++;
+                    
+                    // Check if we've reached the maximum time
+                    if (timerValue >= MAX_TIMER_SECONDS) {
+                        timerElement.textContent = MAX_TIMER_SECONDS + " +";
+                        clearInterval(timerInterval);
+                    } else {
+                        timerElement.textContent = timerValue;
+                    }
+                }, 1000);
+            }
+            
+            // Save practice session data
+            function savePracticeSession(sessionData) {
+                practiceSessions.push(sessionData);
+                updateSessionsTable();
+                updateStudentFilter();
+            }
+            
+            //
+            // TEACHER DASHBOARD FUNCTIONALITY
+            //
+            
+            // Generate a new assignment ID
+            function generateAssignmentId() {
+                return 'assignment_' + Date.now();
+            }
+            
+            // Create a new assignment
+            function createAssignment(name, questions) {
+                const newAssignment = {
+                    id: generateAssignmentId(),
+                    name: name,
+                    questions: questions,
+                    dateCreated: new Date().toLocaleString()
+                };
+                
+                assignments.push(newAssignment);
+                updateAssignmentsList();
+                updateAssignmentDropdown();
+                
+                return newAssignment;
+            }
+            
+            // Update the assignments list in the teacher dashboard
+            function updateAssignmentsList() {
+                assignmentsList.innerHTML = '';
+                assignmentCount.textContent = assignments.length > 0 ? assignments.length + ' assignments' : '0 assignments';
+                
+                if (assignments.length === 0) {
+                    noAssignmentsMessage.classList.remove('hidden');
+                    return;
+                }
+                
+                noAssignmentsMessage.classList.add('hidden');
+                
+                assignments.forEach((assignment, index) => {
+                    const assignmentItem = document.createElement('div');
+                    assignmentItem.className = 'bg-white dark:bg-neutral-700 rounded-lg shadow-sm p-4 animate-fade-in';
+                    
+                    assignmentItem.innerHTML = `
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="font-medium text-primary-600 dark:text-primary-400">${assignment.name}</h3>
+                            <button class="delete-assignment-btn ml-2 text-sm text-accent-500 hover:text-accent-700 dark:hover:text-accent-400 flex items-center" 
+                                    data-id="${assignment.id}">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="text-xs text-neutral-500 dark:text-neutral-400 mb-2">
+                            ${assignment.questions.length} questions • Created: ${assignment.dateCreated}
+                        </div>
+                        <div class="text-sm space-y-1 mt-3">
+                            ${assignment.questions.map((q, i) => `
+                                <div class="py-1 border-t border-neutral-200 dark:border-neutral-600 flex items-center justify-between">
+                                    <div>Q${i + 1}: ${q.dividend} ÷ ${q.divisor}</div>
+                                    <div class="text-neutral-500">${Math.floor(q.dividend / q.divisor)}${q.dividend % q.divisor > 0 ? ` R ${q.dividend % q.divisor}` : ''}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                    
+                    assignmentsList.appendChild(assignmentItem);
+                });
+                
+                // Add event listeners to delete buttons
+                document.querySelectorAll('.delete-assignment-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const assignmentId = this.dataset.id;
+                        if (confirm('Are you sure you want to delete this assignment?')) {
+                            deleteAssignment(assignmentId);
+                        }
+                    });
+                });
+            }
+            
+            // Delete an assignment
+            function deleteAssignment(assignmentId) {
+                const index = assignments.findIndex(a => a.id === assignmentId);
+                if (index !== -1) {
+                    assignments.splice(index, 1);
+                    updateAssignmentsList();
+                    updateAssignmentDropdown();
+                }
+            }
+            
+            // Update the assignment dropdown in practice settings
+            function updateAssignmentDropdown() {
+                assignmentSelect.innerHTML = '<option value="" selected>No assignment</option>';
+                
+                assignments.forEach(assignment => {
+                    const option = document.createElement('option');
+                    option.value = assignment.id;
+                    option.textContent = `${assignment.name} (${assignment.questions.length} questions)`;
+                    assignmentSelect.appendChild(option);
+                });
+            }
+            
+            // Generate a random question for an assignment
+            function generateRandomQuestionForAssignment() {
+                const generateRandomBtns = document.querySelectorAll('.generate-random-btn');
+                generateRandomBtns.forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const questionSettings = this.closest('.question-settings');
+                        const dividendInput = questionSettings.querySelector('.dividend-input');
+                        const divisorInput = questionSettings.querySelector('.divisor-input');
+                        
+                        // Generate a random problem with up to 4 digits dividend and up to 2 digits divisor
+                        const dividendDigits = Math.floor(Math.random() * 3) + 2; // 2-4 digits
+                        const divisorDigits = Math.floor(Math.random() * 2) + 1; // 1-2 digits
+                        const problem = generateRandomProblem(dividendDigits, divisorDigits, 'either');
+                        
+                        dividendInput.value = problem.dividend;
+                        divisorInput.value = problem.divisor;
+                    });
+                });
+            }
+            
+            // Update the questions container based on the selected number of questions
+            function updateQuestionsContainer() {
+                const questionCount = parseInt(assignmentQuestionsSelect.value);
+                questionsContainer.innerHTML = '';
+                
+                for (let i = 0; i < questionCount; i++) {
+                    const questionDiv = document.createElement('div');
+                    questionDiv.className = 'question-settings p-3 bg-white dark:bg-neutral-700 rounded-lg shadow-sm animate-fade-in mb-3';
+                    
+                    questionDiv.innerHTML = `
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="font-medium text-primary-600 dark:text-primary-400">Question ${i + 1}</h3>
+                            <button type="button" class="generate-random-btn text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                Random
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                                <label class="block mb-1 text-sm">Dividend:</label>
+                                <input type="number" class="dividend-input w-full p-2 rounded border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-sm" min="1" max="9999" required placeholder="e.g. 1234">
+                            </div>
+                            <div>
+                                <label class="block mb-1 text-sm">Divisor:</label>
+                                <input type="number" class="divisor-input w-full p-2 rounded border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-sm" min="1" max="999" required placeholder="e.g. 5">
+                            </div>
+                        </div>
+                    `;
+                    
+                    questionsContainer.appendChild(questionDiv);
+                }
+                
+                // Add event listeners to the new generate random buttons
+                generateRandomQuestionForAssignment();
+            }
+            
+            // Display Student Work
+            function displayStudentWork(sessionId) {
+                const session = practiceSessions.find(s => s.sessionId === sessionId);
+                if (!session) return;
+                
+                // Create modal element
+                const modal = document.createElement('div');
+                modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 animate-fade-in';
+                modal.id = 'studentWorkModal';
+                
+                // Create grid to display student's work
+                const gridSize = 10;
+                const gridHtml = Array(gridSize).fill().map(() => Array(gridSize).fill('')).map((row, rowIdx) => {
+                    return `<div class="grid-row flex">
+                        ${row.map((_, colIdx) => {
+                            // Find student input for this cell
+                            const input = session.studentWork.find(input => 
+                                input.row === rowIdx && input.col === colIdx
+                            );
+                            
+                            let cellContent = '';
+                            let classes = 'grid-cell';
+                            
+                            // Add division line
+                            if (rowIdx === 1 && colIdx === session.divisor.toString().length - 1) {
+                                classes += ' division-line';
+                            }
+                            
+                            // Add horizontal line
+                            if ((rowIdx === 0 && colIdx >= session.startCol && colIdx < session.startCol + session.dividend.toString().length) || 
+                                (rowIdx % 2 === 0 && rowIdx > 0 && colIdx >= session.startCol)) {
+                                classes += ' h-line';
+                            }
+                            
+                            // Place divisor and dividend
+                            if (rowIdx === 1) {
+                                if (colIdx < session.divisor.toString().length) {
+                                    cellContent = session.divisor.toString()[colIdx];
+                                } else if (colIdx >= session.startCol && colIdx < session.startCol + session.dividend.toString().length) {
+                                    cellContent = session.dividend.toString()[colIdx - session.startCol];
+                                }
+                            }
+                            
+                            // Add student's work
+                            if (input) {
+                                cellContent = input.value;
+                                classes += ' bg-blue-100 dark:bg-blue-900/30';
+                            }
+                            
+                            // Add "R" for remainder
+                            if (session.dividend % session.divisor > 0 && 
+                                rowIdx === 0 && colIdx === session.startCol + session.dividend.toString().length) {
+                                cellContent = 'R';
+                            }
+                            
+                            return `<div class="${classes}">${cellContent}</div>`;
+                        }).join('')}
+                    </div>`;
+                }).join('');
+                
+                // Create the modal content
+                modal.innerHTML = `
+                    <div class="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-5 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-lg font-semibold">Student Work: ${session.studentName}</h2>
+                            <button id="closeModalBtn" class="text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <p class="font-medium mb-1">Question: ${session.dividend} ÷ ${session.divisor}</p>
+                            <p class="mb-1">Correct Answer: ${Math.floor(session.dividend/session.divisor)}${session.dividend % session.divisor > 0 ? ` R ${session.dividend % session.divisor}` : ''}</p>
+                            <p class="mb-3">Student's Answer: <span class="${session.isAnswerCorrect ? 'text-success-600 dark:text-success-400' : 'text-error-600 dark:text-error-400'}">${session.userAnswer}</span></p>
+                            <div class="flex gap-2 mb-4">
+                                <span class="px-2 py-1 text-xs font-medium rounded ${session.isAnswerCorrect ? 'bg-success-100 dark:bg-success-900/30 text-success-800 dark:text-success-200' : 'bg-error-100 dark:bg-error-900/30 text-error-800 dark:text-error-200'}">
+                                    Answer: ${session.isAnswerCorrect ? 'Correct' : 'Incorrect'}
+                                </span>
+                                <span class="px-2 py-1 bg-neutral-100 dark:bg-neutral-700 text-xs font-medium rounded">
+                                    Time: ${session.timeDisplay}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="border border-neutral-200 dark:border-neutral-700 rounded-lg p-4 mb-4">
+                            <h3 class="font-medium mb-3">Student's Work:</h3>
+                            <div class="flex justify-center">
+                                <div class="student-work-grid text-center">
+                                    ${gridHtml}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <p class="text-sm text-neutral-500 dark:text-neutral-400 mt-2">
+                            Note: Colored cells show the student's input.
+                        </p>
+                    </div>
+                `;
+                
+                // Append the modal to the body
+                document.body.appendChild(modal);
+                
+                // Add styles for the grid
+                const style = document.createElement('style');
+                style.textContent = `
+                    .student-work-grid .grid-cell {
+                        width: 2.5rem;
+                        height: 2.5rem;
+                        font-family: 'Space Mono', monospace;
+                        font-size: 1.25rem;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        border: 1px solid #e7e7ec;
+                        position: relative;
+                    }
+                    
+                    .dark .student-work-grid .grid-cell {
+                        border-color: #3d3d47;
+                    }
+                    
+                    .student-work-grid .h-line {
+                        border-bottom: 2px solid #2e2e36;
+                    }
+                    
+                    .dark .student-work-grid .h-line {
+                        border-bottom: 2px solid #d1d1db;
+                    }
+                    
+                    .student-work-grid .division-line {
+                        border-right: 3px solid #2e2e36;
+                    }
+                    
+                    .dark .student-work-grid .division-line {
+                        border-right: 3px solid #d1d1db;
+                    }
+                `;
+                document.head.appendChild(style);
+                
+                // Add event listener to close button
+                document.getElementById('closeModalBtn').addEventListener('click', function() {
+                    modal.remove();
+                    style.remove();
+                });
+                
+                // Close modal when clicking outside the content
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        modal.remove();
+                        style.remove();
+                    }
+                });
+            }
+            
+            // Update the sessions table in the Teacher Dashboard
+            function updateSessionsTable() {
+                sessionsTableBody.innerHTML = '';
+                
+                // Get filtered sessions
+                const filteredSessions = filterSessionsByStudent(currentStudentFilter);
+                sessionCount.textContent = filteredSessions.length > 0 ? filteredSessions.length + ' sessions' : '0 sessions';
+                
+                if (filteredSessions.length === 0) {
+                    noDataMessage.classList.remove('hidden');
+                    return;
+                }
+                
+                noDataMessage.classList.add('hidden');
+                
+                filteredSessions.forEach((session, index) => {
+                    const row = document.createElement('tr');
+                    row.className = index % 2 === 0 ? 'bg-white dark:bg-neutral-800 animate-fade-in' : 'bg-neutral-50 dark:bg-neutral-700 animate-fade-in';
+                    
+                    row.innerHTML = `
+                        <td class="p-3 border-b border-r border-neutral-200 dark:border-neutral-600">${session.studentName}</td>
+                        <td class="p-3 border-b border-r border-neutral-200 dark:border-neutral-600">${session.question}</td>
+                        <td class="p-3 border-b border-r border-neutral-200 dark:border-neutral-600">
+                            <div class="flex items-center">
+                                <span class="${session.isAnswerCorrect ? 'text-success-700 dark:text-success-300' : 'text-error-700 dark:text-error-300'}">${session.userAnswer}</span>
+                                <button class="display-work-btn ml-2 px-2 py-0.5 bg-primary-500 hover:bg-primary-600 text-white text-xs rounded transition-colors" data-session-id="${session.sessionId}">
+                                    Display
+                                </button>
+                            </div>
+                        </td>
+                        <td class="p-3 border-b border-r border-neutral-200 dark:border-neutral-600">
+                            <span class="px-2 py-0.5 ${session.isAnswerCorrect ? 'bg-success-100 dark:bg-success-800 text-success-700 dark:text-success-300' : 'bg-error-100 dark:bg-error-800 text-error-700 dark:text-error-300'} rounded text-xs">${session.isAnswerCorrect ? 'Correct' : 'Incorrect'}</span>
+                        </td>
+                        <td class="p-3 border-b border-neutral-200 dark:border-neutral-600">${session.timeDisplay}</td>
+                    `;
+                    
+                    sessionsTableBody.appendChild(row);
+                });
+                
+                // Add event listeners to display buttons
+                document.querySelectorAll('.display-work-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const sessionId = parseInt(this.dataset.sessionId);
+                        displayStudentWork(sessionId);
+                    });
+                });
+            }
+            
+            // Sort the table by a specific column
+            function sortTable(colIndex, ascending) {
+                const sortedSessions = [...filterSessionsByStudent(currentStudentFilter)].sort((a, b) => {
+                    let valueA, valueB;
+                    
+                    switch(colIndex) {
+                        case 0: // Student
+                            valueA = a.studentName;
+                            valueB = b.studentName;
+                            break;
+                        case 1: // Question
+                            valueA = a.question;
+                            valueB = b.question;
+                            break;
+                        case 2: // Answer
+                            valueA = a.userAnswer;
+                            valueB = b.userAnswer;
+                            break;
+                        case 3: // Status
+                            valueA = a.isAnswerCorrect ? 'Correct' : 'Incorrect';
+                            valueB = b.isAnswerCorrect ? 'Correct' : 'Incorrect';
+                            break;
+                        case 4: // Time
+                            valueA = a.timeTaken;
+                            valueB = b.timeTaken;
+                            break;
+                        default:
+                            return 0;
+                    }
+                    
+                    if (colIndex === 4) { // Numeric sort for time
+                        return ascending ? valueA - valueB : valueB - valueA;
+                    } else { // String sort for others
+                        return ascending ? 
+                            valueA.toString().localeCompare(valueB.toString()) : 
+                            valueB.toString().localeCompare(valueA.toString());
+                    }
+                });
+                
+                // We don't want to modify the original sessions, just display them in a different order
+                sessionsTableBody.innerHTML = '';
+                
+                sortedSessions.forEach((session, index) => {
+                    const row = document.createElement('tr');
+                    row.className = index % 2 === 0 ? 'bg-white dark:bg-neutral-800 animate-fade-in' : 'bg-neutral-50 dark:bg-neutral-700 animate-fade-in';
+                    
+                    row.innerHTML = `
+                        <td class="p-3 border-b border-r border-neutral-200 dark:border-neutral-600">${session.studentName}</td>
+                        <td class="p-3 border-b border-r border-neutral-200 dark:border-neutral-600">${session.question}</td>
+                        <td class="p-3 border-b border-r border-neutral-200 dark:border-neutral-600">
+                            <div class="flex items-center">
+                                <span class="${session.isAnswerCorrect ? 'text-success-700 dark:text-success-300' : 'text-error-700 dark:text-error-300'}">${session.userAnswer}</span>
+                                <button class="display-work-btn ml-2 px-2 py-0.5 bg-primary-500 hover:bg-primary-600 text-white text-xs rounded transition-colors" data-session-id="${session.sessionId}">
+                                    Display
+                                </button>
+                            </div>
+                        </td>
+                        <td class="p-3 border-b border-r border-neutral-200 dark:border-neutral-600">
+                            <span class="px-2 py-0.5 ${session.isAnswerCorrect ? 'bg-success-100 dark:bg-success-800 text-success-700 dark:text-success-300' : 'bg-error-100 dark:bg-error-800 text-error-700 dark:text-error-300'} rounded text-xs">${session.isAnswerCorrect ? 'Correct' : 'Incorrect'}</span>
+                        </td>
+                        <td class="p-3 border-b border-neutral-200 dark:border-neutral-600">${session.timeDisplay}</td>
+                    `;
+                    
+                    sessionsTableBody.appendChild(row);
+                });
+                
+                // Add event listeners to display buttons again
+                document.querySelectorAll('.display-work-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const sessionId = parseInt(this.dataset.sessionId);
+                        displayStudentWork(sessionId);
+                    });
+                });
+            }
+            
+            //
+            // HELPER FUNCTIONS
+            //
+            function setActiveTab(tab) {
+                // Remove active class from all tabs
+                demoModeBtn.classList.remove('active');
+                practiceModeBtn.classList.remove('active');
+                teacherDashboardBtn.classList.remove('active');
+                
+                // Remove background from all tab buttons
+                demoModeBtn.querySelector('span:last-child').classList.add('opacity-0');
+                practiceModeBtn.querySelector('span:last-child').classList.add('opacity-0');
+                teacherDashboardBtn.querySelector('span:last-child').classList.add('opacity-0');
+                
+                // Add active class to selected tab
+                tab.classList.add('active');
+                
+                // Add background to selected tab button
+                tab.querySelector('span:last-child').classList.remove('opacity-0');
+            }
+            
+            //
+            // EVENT LISTENERS
+            //
+            
+            // Toggle between Demo Mode, Practice Mode, and Teacher Dashboard
+            demoModeBtn.addEventListener('click', function() {
+                setActiveTab(this);
+                
+                demoMode.classList.remove('hidden');
+                practiceMode.classList.add('hidden');
+                teacherDashboard.classList.add('hidden');
+            });
+            
+            practiceModeBtn.addEventListener('click', function() {
+                setActiveTab(this);
+                
+                practiceMode.classList.remove('hidden');
+                demoMode.classList.add('hidden');
+                teacherDashboard.classList.add('hidden');
+                
+                // Reset to settings view
+                practiceSettingsSection.classList.remove('hidden');
+                practiceInputSection.classList.add('hidden');
+                practiceInterface.classList.add('hidden');
+                practiceResults.classList.add('hidden');
+            });
+            
+            teacherDashboardBtn.addEventListener('click', function() {
+                setActiveTab(this);
+                
+                teacherDashboard.classList.remove('hidden');
+                demoMode.classList.add('hidden');
+                practiceMode.classList.add('hidden');
+                
+                updateSessionsTable();
+                updateAssignmentsList();
+            });
+            
+            // Student filter change
+            studentFilter.addEventListener('change', function() {
+                currentStudentFilter = this.value;
+                updateSessionsTable();
+            });
+            
+            // Demo Mode event listeners
+            demoForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                if (initializeDemo()) {
+                    // Reset step button state is handled in initializeDemo()
+                }
+            });
+            
+            stepButton.addEventListener('click', function() {
+                if (!this.disabled) {
+                    executeDemoNextStep();
+                }
+            });
+            
+            resetButton.addEventListener('click', function() {
+                // Hide visualizer sections
+                stepBtnContainer.classList.add('hidden');
+                gridContainer.classList.add('hidden');
+                explanationContainer.classList.add('hidden');
+                stepsContainer.classList.add('hidden');
+                
+                // Reset the grid
+                createEmptyDemoGrid();
+                
+                // Reset the steps
+                stepsDiv.innerHTML = '';
+                
+                // Reset step counter
+                demoCurrentStepIndex = -1;
+            });
+            
+            // Practice Mode event listeners
+            practiceSettingsForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                console.log("Form submitted");
+                
+                if (generatePracticeQuestions()) {
+                    console.log("Practice questions generated successfully");
+                    practiceSettingsSection.classList.add('hidden');
+                    
+                    // Start immediately with first question
+                    currentQuestionIndex = 0;
+                    console.log("Initializing practice...");
+                    initializePractice();
+                    
+                    // Show practice interface directly instead of question input section
+                    console.log("Showing practice interface");
+                    practiceInterface.classList.remove('hidden');
+                    
+                    // Start timer
+                    startTimer();
+                } else {
+                    console.log("Failed to generate practice questions");
+                }
+            });
+            
+            backToSettingsBtn.addEventListener('click', function() {
+                // Redirect back to settings from practice interface
+                practiceInterface.classList.add('hidden');
+                practiceSettingsSection.classList.remove('hidden');
+                clearInterval(timerInterval);
+            });
+            
+            toggleTimerBtn.addEventListener('click', function() {
+                toggleTimer();
+            });
+            
+            finishBtn.addEventListener('click', function() {
+                checkPracticeSolution();
+            });
+            
+            nextQuestionBtn.addEventListener('click', function() {
+                moveToNextQuestion();
+            });
+            
+            newPracticeBtn.addEventListener('click', function() {
+                practiceResults.classList.add('hidden');
+                practiceSettingsSection.classList.remove('hidden');
+            });
+            
+            // Teacher Dashboard event listeners
+            assignmentQuestionsSelect.addEventListener('change', function() {
+                updateQuestionsContainer();
+            });
+            
+            assignmentForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const assignmentName = document.getElementById('assignment-name').value.trim();
+                if (!assignmentName) {
+                    showNotification('Please enter an assignment name', 'error');
+                    return;
+                }
+                
+                // Collect all questions
+                const questions = [];
+                const questionSettings = document.querySelectorAll('.question-settings');
+                
+                for (let i = 0; i < questionSettings.length; i++) {
+                    const dividendInput = questionSettings[i].querySelector('.dividend-input');
+                    const divisorInput = questionSettings[i].querySelector('.divisor-input');
+                    
+                    const dividend = parseInt(dividendInput.value);
+                    const divisor = parseInt(divisorInput.value);
+                    
+                    if (isNaN(dividend) || isNaN(divisor) || dividend < 1 || divisor < 1) {
+                        showNotification(`Please enter valid numbers for Question ${i + 1}`, 'error');
+                        return;
+                    }
+                    
+                    questions.push({
+                        dividend: dividend,
+                        divisor: divisor
+                    });
+                }
+                
+                // Create the assignment
+                const newAssignment = createAssignment(assignmentName, questions);
+                
+                // Reset the form
+                document.getElementById('assignment-name').value = '';
+                updateQuestionsContainer();
+                
+                // Show success message
+                showNotification('Assignment created successfully!', 'success');
+            });
+            
+            clearDataBtn.addEventListener('click', function() {
+                if (confirm('Are you sure you want to clear all practice session data? This cannot be undone.')) {
+                    clearAllData();
+                }
+            });
+            
+            // Table header click for sorting
+            const tableHeaders = document.querySelectorAll('#sessionsTable th');
+            tableHeaders.forEach((header, index) => {
+                header.addEventListener('click', function() {
+                    // Toggle ascending/descending
+                    const sortIcons = document.querySelectorAll('.sort-icon');
+                    let ascending = true;
+                    
+                    if (this.querySelector('.sort-icon').textContent === '↑') {
+                        // Currently ascending, switch to descending
+                        sortIcons.forEach(icon => icon.textContent = '↕');
+                        this.querySelector('.sort-icon').textContent = '↓';
+                        ascending = false;
+                    } else {
+                        // Switch to ascending
+                        sortIcons.forEach(icon => icon.textContent = '↕');
+                        this.querySelector('.sort-icon').textContent = '↑';
+                        ascending = true;
+                    }
+                    
+                    sortTable(index, ascending);
+                });
+            });
+            
+            // Initialize with example values
+            document.getElementById('demo-dividend').value = '1234';
+            document.getElementById('demo-divisor').value = '5';
+            
+            // Initialize teacher dashboard
+            updateQuestionsContainer();
+            generateRandomQuestionForAssignment();
+            updateAssignmentsList();
+            updateAssignmentDropdown();
+            
+            // Check if we should auto-advance to the next question
+            function checkAutoAdvance() {
+                console.log("Checking if should auto-advance");
+                
+                // Extract user's quotient
+                let userQuotient = '';
+                for (let i = 0; i < dividendStr.length; i++) {
+                    const quotientInput = document.querySelector(`.grid-input[data-row="0"][data-col="${startCol + i}"]`);
+                    if (quotientInput && quotientInput.value.trim()) {
+                        userQuotient += quotientInput.value.trim();
+                    }
+                }
+                
+                // Check if we have at least 2 digits in quotient or filled all available quotient fields
+                if (userQuotient.length < 2 && userQuotient.length < dividendStr.length) {
+                    console.log("Not enough quotient digits entered");
+                    return;
+                }
+                
+                // Check remainder if applicable
+                if (hasRemainder) {
+                    const remainderCol = startCol + dividendStr.length;
+                    
+                    // For multi-digit divisors, check all remainder input boxes
+                    if (divisorStr.length >= 2) {
+                        let hasRemainderValue = false;
+                        // Check at least one of the remainder boxes has a value
+                        for (let i = 0; i < divisorStr.length; i++) {
+                            const remainderInput = document.querySelector(`.grid-input[data-row="0"][data-col="${remainderCol + 1 + i}"]`);
+                            if (remainderInput && remainderInput.value.trim()) {
+                                hasRemainderValue = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!hasRemainderValue) {
+                            console.log("Multi-digit remainder needed but not entered");
+                            return;
+                        }
+                    } else {
+                        // Single digit divisor - check the single remainder box
+                        const remainderInput = document.querySelector(`.grid-input[data-row="0"][data-col="${remainderCol + 1}"]`);
+                        if (!remainderInput || !remainderInput.value.trim()) {
+                            console.log("Remainder needed but not entered");
+                            return;
+                        }
+                    }
+                }
+                
+                // If we've reached here, auto-advance after a short delay
+                console.log("Auto-advancing to next question");
+                setTimeout(() => {
+                    checkPracticeSolution();
+                }, 500);
+            }
+            
+            // Configure the practice grid with the current problem
+            function configurePracticeGrid() {
+                console.log("Configuring practice grid with problem");
+                // Reset state
+                isTimerVisible = false;
+                timerDisplay.classList.add('hidden');
+                
+                // Check if problem has a remainder
+                hasRemainder = dividend % divisor !== 0;
+                
+                // Place divisor in the grid (at column 0)
+                for (let i = 0; i < divisorStr.length; i++) {
+                    setPracticeCellValue(1, i, divisorStr[i]);
+                    // If this is the last digit of the divisor, add division line
+                    if (i === divisorStr.length - 1) {
+                        addPracticeDivisionLine(1, i);
+                    }
+                }
+                
+                // Place dividend immediately after divisor
+                startCol = divisorStr.length;
+                for (let i = 0; i < dividendStr.length; i++) {
+                    setPracticeCellValue(1, startCol + i, dividendStr[i]);
+                }
+                
+                // Add horizontal line above the dividend
+                for (let i = 0; i < dividendStr.length; i++) {
+                    addPracticeHLine(0, startCol + i);
+                }
+                
+                // Add input fields for the quotient row
+                for (let i = 0; i < dividendStr.length; i++) {
+                    addInputField(0, startCol + i);
+                    
+                    // Add event listeners to auto-advance when filled
+                    const input = practiceGrid.querySelector(`.grid-input[data-row="0"][data-col="${startCol + i}"]`);
+                    if (input) {
+                        input.addEventListener('input', checkAutoAdvance);
+                    }
+                }
+                
+                // Add 'R' for remainder if the problem has a remainder
+                if (hasRemainder) {
+                    const remainderCol = startCol + dividendStr.length;
+                    setPracticeCellValue(0, remainderCol, 'R', false);
+                    
+                    // For multi-digit divisors, we need multiple input boxes for the remainder
+                    let maxRemainderLength = 1;
+                    if (divisorStr.length >= 2) {
+                        // Add a separate input box for each potential digit in the remainder
+                        // For a 2-digit divisor, there can be up to 2 digits in the remainder
+                        maxRemainderLength = 1; // Individual boxes will only hold 1 digit each
+                        
+                        for (let i = 0; i < divisorStr.length; i++) {
+                            // Add input field for each digit of the remainder
+                            const input = addInputField(0, remainderCol + 1 + i, 1);
+                            if (input) {
+                                input.addEventListener('input', checkAutoAdvance);
+                            }
+                        }
+                    } else {
+                        // Single-digit divisor - just add one box as before
+                        const input = addInputField(0, remainderCol + 1, 1);
+                        if (input) {
+                            input.addEventListener('input', checkAutoAdvance);
+                        }
+                    }
+                }
+                
+                // Add input fields and subtraction symbols for the working area
+                for (let row = 2; row < 8; row++) {
+                    // Add subtraction symbol for rows with products (even rows)
+                    if (row % 2 === 0) {
+                        // Add a cell for subtraction symbol to the left of the product row
+                        const subCol = startCol - 1;
+                        if (subCol >= 0) {
+                            addSubtractionSymbol(row, subCol);
+                        }
+                    }
+                    
+                    // Add input fields for all working area cells
+                    for (let col = startCol; col < startCol + dividendStr.length; col++) {
+                        addInputField(row, col);
+                    }
+                }
+                
+                // Add horizontal lines at regular intervals for subtraction steps
+                addSubtractionLines();
+            }
+        });
+    </script>
+</body>
+</html>
