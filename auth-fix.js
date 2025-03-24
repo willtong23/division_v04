@@ -9,6 +9,38 @@
 (function() {
     console.log("Loading auth-fix.js - defining missing functions");
     
+    // Make Firebase variables globally accessible
+    if (typeof firebase !== 'undefined') {
+        // Ensure global access to Firebase instances
+        if (typeof window.db === 'undefined') {
+            try {
+                window.db = firebase.firestore();
+                console.log("Made Firestore globally accessible");
+            } catch (e) {
+                console.error("Error making Firestore global:", e);
+            }
+        }
+        
+        if (typeof window.auth === 'undefined') {
+            try {
+                window.auth = firebase.auth();
+                console.log("Made Auth globally accessible");
+            } catch (e) {
+                console.error("Error making Auth global:", e);
+            }
+        }
+        
+        // Ensure currentUser is globally accessible too
+        if (typeof window.currentUser === 'undefined') {
+            Object.defineProperty(window, 'currentUser', {
+                get: function() {
+                    return firebase.auth().currentUser;
+                }
+            });
+            console.log("Made currentUser globally accessible");
+        }
+    }
+    
     // Define updateAuthUI globally if it doesn't exist
     if (typeof window.updateAuthUI !== 'function') {
         window.updateAuthUI = function() {
@@ -91,7 +123,19 @@
             try {
                 if (!window.db) {
                     console.error("Firestore database not initialized");
-                    return;
+                    
+                    // Try to get it directly from firebase
+                    if (typeof firebase !== 'undefined') {
+                        try {
+                            window.db = firebase.firestore();
+                            console.log("Retrieved Firestore from firebase");
+                        } catch (e) {
+                            console.error("Couldn't get Firestore from firebase:", e);
+                            return;
+                        }
+                    } else {
+                        return;
+                    }
                 }
                 
                 console.log("Loading assignments...");
