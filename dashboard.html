@@ -999,105 +999,130 @@
             console.log("Loading practice sessions...");
             showNotification("Loading practice sessions...");
             
-            // Check multiple locations where data might be stored
-            Promise.all([
-                // Main app saves to this nested structure
-                currentUser ? 
-                    db.collection('practiceSessions')
-                        .doc(currentUser.uid)
-                        .collection('sessions')
-                        .orderBy('timestamp', 'desc')
-                        .get()
-                        .catch(error => {
-                            console.error("Error fetching from nested practiceSessions:", error);
-                            return { docs: [] };
-                        })
-                    : Promise.resolve({ docs: [] }),
-                
-                // Public practice data (fallback in main app)
-                db.collection('public_practice_data')
-                    .orderBy('timestamp', 'desc')
-                    .get()
-                    .catch(error => {
-                        console.error("Error fetching from public_practice_data:", error);
-                        return { docs: [] };
-                    }),
-                
-                // Test sessions (another fallback)
-                db.collection('test_sessions')
-                    .orderBy('timestamp', 'desc')
-                    .get()
-                    .catch(error => {
-                        console.error("Error fetching from test_sessions:", error);
-                        return { docs: [] };
-                    }),
+            // First, get all user IDs to check their nested collections
+            db.collection('practiceSessions')
+                .get()
+                .then(usersSnapshot => {
+                    console.log("Found user directories:", usersSnapshot.docs.length);
                     
-                // Original dashboard collections (for backward compatibility)
-                db.collection('practiceSessions')
-                    .orderBy('timestamp', 'desc')
-                    .get()
-                    .catch(error => {
-                        console.error("Error fetching from flat practiceSessions:", error);
-                        return { docs: [] };
-                    }),
-                
-                db.collection('public_practiceSessions')
-                    .orderBy('timestamp', 'desc')
-                    .get()
-                    .catch(error => {
-                        console.error("Error fetching from public_practiceSessions:", error);
-                        return { docs: [] };
-                    })
-            ])
-            .then(([nestedSnapshot, publicSnapshot, testSnapshot, flatSnapshot, publicFlatSnapshot]) => {
-                console.log("Nested collection documents:", nestedSnapshot.docs.length);
-                console.log("Public practice data documents:", publicSnapshot.docs.length);
-                console.log("Test sessions documents:", testSnapshot.docs.length);
-                console.log("Flat collection documents:", flatSnapshot.docs.length);
-                console.log("Public flat collection documents:", publicFlatSnapshot.docs.length);
-                
-                practiceSessions = [];
-                studentNames = new Set();
-                
-                // Process all collections
-                const allSnapshots = [
-                    { name: "Nested Collection", snapshot: nestedSnapshot },
-                    { name: "Public Practice Data", snapshot: publicSnapshot },
-                    { name: "Test Sessions", snapshot: testSnapshot },
-                    { name: "Flat Collection", snapshot: flatSnapshot },
-                    { name: "Public Flat Collection", snapshot: publicFlatSnapshot }
-                ];
-                
-                allSnapshots.forEach(item => {
-                    console.log(`Processing ${item.name} with ${item.snapshot.docs.length} documents`);
+                    // Fetch from all potential locations
+                    const fetchPromises = [];
                     
-                    item.snapshot.forEach(doc => {
-                        const data = doc.data();
-                        const session = processSessionData(doc.id, data);
-                        if (session) {
-                            practiceSessions.push(session);
-                            studentNames.add(session.studentName);
-                        }
+                    // 1. Check each user's nested sessions collection
+                    usersSnapshot.docs.forEach(userDoc => {
+                        fetchPromises.push(
+                            db.collection('practiceSessions')
+                                .doc(userDoc.id)
+                                .collection('sessions')
+                                .orderBy('timestamp', 'desc')
+                                .get()
+                                .then(snapshot => {
+                                    console.log(`User ${userDoc.id} sessions:`, snapshot.docs.length);
+                                    return snapshot;
+                                })
+                                .catch(error => {
+                                    console.error(`Error fetching from user ${userDoc.id} sessions:`, error);
+                                    return { docs: [] };
+                                })
+                        );
                     });
+                    
+                    // 2. Check the current user's sessions (which should be included above, but just to be safe)
+                    if (currentUser) {
+                        fetchPromises.push(
+                            db.collection('practiceSessions')
+                                .doc(currentUser.uid)
+                                .collection('sessions')
+                                .orderBy('timestamp', 'desc')
+                                .get()
+                                .catch(error => {
+                                    console.error("Error fetching from current user sessions:", error);
+                                    return { docs: [] };
+                                })
+                        );
+                    }
+                    
+                    // 3. Check flat collections and fallbacks
+                    fetchPromises.push(
+                        db.collection('public_practice_data')
+                            .orderBy('timestamp', 'desc')
+                            .get()
+                            .catch(error => {
+                                console.error("Error fetching from public_practice_data:", error);
+                                return { docs: [] };
+                            })
+                    );
+                    
+                    fetchPromises.push(
+                        db.collection('test_sessions')
+                            .orderBy('timestamp', 'desc')
+                            .get()
+                            .catch(error => {
+                                console.error("Error fetching from test_sessions:", error);
+                                return { docs: [] };
+                            })
+                    );
+                    
+                    fetchPromises.push(
+                        db.collection('practiceSessions')
+                            .orderBy('timestamp', 'desc')
+                            .get()
+                            .catch(error => {
+                                console.error("Error fetching from flat practiceSessions:", error);
+                                return { docs: [] };
+                            })
+                    );
+                    
+                    fetchPromises.push(
+                        db.collection('public_practiceSessions')
+                            .orderBy('timestamp', 'desc')
+                            .get()
+                            .catch(error => {
+                                console.error("Error fetching from public_practiceSessions:", error);
+                                return { docs: [] };
+                            })
+                    );
+                    
+                    // Process all fetched data
+                    return Promise.all(fetchPromises);
+                })
+                .then(snapshotArray => {
+                    console.log("Retrieved", snapshotArray.length, "snapshots to process");
+                    
+                    practiceSessions = [];
+                    studentNames = new Set();
+                    
+                    // Process all snapshots
+                    snapshotArray.forEach((snapshot, index) => {
+                        console.log(`Processing snapshot ${index} with ${snapshot.docs.length} documents`);
+                        
+                        snapshot.docs.forEach(doc => {
+                            const data = doc.data();
+                            const session = processSessionData(doc.id, data);
+                            if (session) {
+                                practiceSessions.push(session);
+                                studentNames.add(session.studentName);
+                            }
+                        });
+                    });
+                    
+                    // Sort by timestamp
+                    practiceSessions.sort((a, b) => {
+                        if (!a.timestamp) return 1;
+                        if (!b.timestamp) return -1;
+                        return b.timestamp - a.timestamp;
+                    });
+                    
+                    // Update UI
+                    updateStudentFilter();
+                    updateSessionsTable();
+                    
+                    showNotification(`Loaded ${practiceSessions.length} practice sessions`, 'success');
+                })
+                .catch(error => {
+                    console.error("Error loading practice sessions:", error);
+                    showNotification(`Error loading practice sessions: ${error.message}`, 'error');
                 });
-                
-                // Sort by timestamp
-                practiceSessions.sort((a, b) => {
-                    if (!a.timestamp) return 1;
-                    if (!b.timestamp) return -1;
-                    return b.timestamp - a.timestamp;
-                });
-                
-                // Update UI
-                updateStudentFilter();
-                updateSessionsTable();
-                
-                showNotification(`Loaded ${practiceSessions.length} practice sessions`, 'success');
-            })
-            .catch(error => {
-                console.error("Error loading practice sessions:", error);
-                showNotification(`Error loading practice sessions: ${error.message}`, 'error');
-            });
         }
         
         // Process session data from Firestore
@@ -1221,9 +1246,23 @@
                 );
             });
             
+            // Create a second user to test whether we can see other users' data
+            const secondUserId = "test_user_" + Date.now();
+            
+            testSessions.forEach(session => {
+                const sessionWithOtherUser = {...session, studentName: "Other User Test"};
+                savePromises.push(
+                    db.collection('practiceSessions')
+                        .doc(secondUserId)
+                        .collection('sessions')
+                        .add(sessionWithOtherUser)
+                        .catch(error => console.error("Error adding to test user sessions:", error))
+                );
+            });
+            
             Promise.all(savePromises)
                 .then(() => {
-                    showNotification(`Created ${testSessions.length * 3} test sessions in multiple collections`, 'success');
+                    showNotification(`Created ${testSessions.length * 4} test sessions in multiple collections`, 'success');
                     loadPracticeSessions(); // Reload data to show new sessions
                 })
                 .catch(error => {
