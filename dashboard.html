@@ -999,18 +999,48 @@
             console.log("Loading practice sessions...");
             showNotification("Loading practice sessions...");
             
-            // Check both collections where practice data might be stored
+            // Check multiple locations where data might be stored
             Promise.all([
-                // Check regular collection (requires auth)
+                // Main app saves to this nested structure
+                currentUser ? 
+                    db.collection('practiceSessions')
+                        .doc(currentUser.uid)
+                        .collection('sessions')
+                        .orderBy('timestamp', 'desc')
+                        .get()
+                        .catch(error => {
+                            console.error("Error fetching from nested practiceSessions:", error);
+                            return { docs: [] };
+                        })
+                    : Promise.resolve({ docs: [] }),
+                
+                // Public practice data (fallback in main app)
+                db.collection('public_practice_data')
+                    .orderBy('timestamp', 'desc')
+                    .get()
+                    .catch(error => {
+                        console.error("Error fetching from public_practice_data:", error);
+                        return { docs: [] };
+                    }),
+                
+                // Test sessions (another fallback)
+                db.collection('test_sessions')
+                    .orderBy('timestamp', 'desc')
+                    .get()
+                    .catch(error => {
+                        console.error("Error fetching from test_sessions:", error);
+                        return { docs: [] };
+                    }),
+                    
+                // Original dashboard collections (for backward compatibility)
                 db.collection('practiceSessions')
                     .orderBy('timestamp', 'desc')
                     .get()
                     .catch(error => {
-                        console.error("Error fetching from practiceSessions:", error);
+                        console.error("Error fetching from flat practiceSessions:", error);
                         return { docs: [] };
                     }),
                 
-                // Check public collection (fallback)
                 db.collection('public_practiceSessions')
                     .orderBy('timestamp', 'desc')
                     .get()
@@ -1019,31 +1049,36 @@
                         return { docs: [] };
                     })
             ])
-            .then(([regularSnapshot, publicSnapshot]) => {
-                console.log("Regular collection documents:", regularSnapshot.docs.length);
-                console.log("Public collection documents:", publicSnapshot.docs.length);
+            .then(([nestedSnapshot, publicSnapshot, testSnapshot, flatSnapshot, publicFlatSnapshot]) => {
+                console.log("Nested collection documents:", nestedSnapshot.docs.length);
+                console.log("Public practice data documents:", publicSnapshot.docs.length);
+                console.log("Test sessions documents:", testSnapshot.docs.length);
+                console.log("Flat collection documents:", flatSnapshot.docs.length);
+                console.log("Public flat collection documents:", publicFlatSnapshot.docs.length);
                 
                 practiceSessions = [];
                 studentNames = new Set();
                 
-                // Process regular sessions
-                regularSnapshot.forEach(doc => {
-                    const data = doc.data();
-                    const session = processSessionData(doc.id, data);
-                    if (session) {
-                        practiceSessions.push(session);
-                        studentNames.add(session.studentName);
-                    }
-                });
+                // Process all collections
+                const allSnapshots = [
+                    { name: "Nested Collection", snapshot: nestedSnapshot },
+                    { name: "Public Practice Data", snapshot: publicSnapshot },
+                    { name: "Test Sessions", snapshot: testSnapshot },
+                    { name: "Flat Collection", snapshot: flatSnapshot },
+                    { name: "Public Flat Collection", snapshot: publicFlatSnapshot }
+                ];
                 
-                // Process public sessions
-                publicSnapshot.forEach(doc => {
-                    const data = doc.data();
-                    const session = processSessionData(doc.id, data);
-                    if (session) {
-                        practiceSessions.push(session);
-                        studentNames.add(session.studentName);
-                    }
+                allSnapshots.forEach(item => {
+                    console.log(`Processing ${item.name} with ${item.snapshot.docs.length} documents`);
+                    
+                    item.snapshot.forEach(doc => {
+                        const data = doc.data();
+                        const session = processSessionData(doc.id, data);
+                        if (session) {
+                            practiceSessions.push(session);
+                            studentNames.add(session.studentName);
+                        }
+                    });
                 });
                 
                 // Sort by timestamp
@@ -1069,22 +1104,51 @@
         function processSessionData(id, data) {
             if (!data) return null;
             
+            console.log("Processing document:", id, data);
+            
+            // Check if the data has the required fields
+            if (!data.dividend && !data.divisor && !data.questionData) {
+                console.log("Document doesn't have required division data:", id);
+                return null;
+            }
+            
             // Extract timestamp
             let timestamp = null;
             if (data.timestamp && data.timestamp.toDate) {
                 timestamp = data.timestamp.toDate();
             } else if (data.timestamp) {
                 timestamp = new Date(data.timestamp);
+            } else {
+                timestamp = new Date(); // Default to current time if no timestamp
+            }
+            
+            // Handle different data formats
+            let dividend, divisor, studentAnswer, isCorrect, timeSeconds;
+            
+            if (data.questionData) {
+                // Format from newer versions
+                dividend = data.questionData.dividend || "?";
+                divisor = data.questionData.divisor || "?";
+                studentAnswer = data.studentAnswer || data.answer || "No answer";
+                isCorrect = data.isCorrect === true;
+                timeSeconds = data.timeSeconds || data.time || 0;
+            } else {
+                // Direct format
+                dividend = data.dividend || "?";
+                divisor = data.divisor || "?";
+                studentAnswer = data.studentAnswer || data.answer || "No answer";
+                isCorrect = data.isCorrect === true;
+                timeSeconds = data.timeSeconds || data.time || 0;
             }
             
             // Create standardized session object
             return {
                 id: id,
-                studentName: data.studentName || "Unknown Student",
-                question: `${data.dividend} ÷ ${data.divisor}`,
-                answer: data.studentAnswer || "No answer",
-                status: data.isCorrect ? "Correct" : "Incorrect",
-                timeSeconds: data.timeSeconds || 0,
+                studentName: data.studentName || data.student || "Unknown Student",
+                question: `${dividend} ÷ ${divisor}`,
+                answer: studentAnswer,
+                status: isCorrect ? "Correct" : "Incorrect",
+                timeSeconds: timeSeconds,
                 timestamp: timestamp,
                 fullData: data // Keep the full data for reference
             };
@@ -1130,25 +1194,36 @@
             // Save to both collections to ensure visibility
             const savePromises = [];
             
-            // Save to regular collection
+            // Save to regular collection (nested path)
             testSessions.forEach(session => {
                 savePromises.push(
-                    db.collection('practiceSessions').add(session)
-                        .catch(error => console.error("Error adding to practiceSessions:", error))
+                    db.collection('practiceSessions')
+                        .doc(currentUser.uid)
+                        .collection('sessions')
+                        .add(session)
+                        .catch(error => console.error("Error adding to nested practiceSessions:", error))
                 );
             });
             
-            // Save to public collection
+            // Save to public collection (main app fallback)
             testSessions.forEach(session => {
                 savePromises.push(
-                    db.collection('public_practiceSessions').add(session)
-                        .catch(error => console.error("Error adding to public_practiceSessions:", error))
+                    db.collection('public_practice_data').add(session)
+                        .catch(error => console.error("Error adding to public_practice_data:", error))
+                );
+            });
+            
+            // Save to test_sessions (another fallback used by main app)
+            testSessions.forEach(session => {
+                savePromises.push(
+                    db.collection('test_sessions').add(session)
+                        .catch(error => console.error("Error adding to test_sessions:", error))
                 );
             });
             
             Promise.all(savePromises)
                 .then(() => {
-                    showNotification(`Created ${testSessions.length * 2} test sessions`, 'success');
+                    showNotification(`Created ${testSessions.length * 3} test sessions in multiple collections`, 'success');
                     loadPracticeSessions(); // Reload data to show new sessions
                 })
                 .catch(error => {
