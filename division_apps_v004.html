@@ -384,6 +384,11 @@
             /* No additional styles needed now that we're using Tailwind's space-y-3 */
         }
     </style>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 </head>
 <body class="transition-colors duration-300 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 min-h-screen">
     <!-- Header -->
@@ -398,6 +403,32 @@
                 </h1>
             </div>
             <div class="flex items-center gap-3">
+                <!-- Auth Section (Login/Register) -->
+                <div id="authSection" class="flex items-center gap-2">
+                    <button id="loginBtn" class="px-3 py-1.5 bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 rounded-lg hover:bg-primary-200 dark:hover:bg-primary-800 transition-colors text-sm flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                        </svg>
+                        Log In
+                    </button>
+                    <button id="registerBtn" class="px-3 py-1.5 bg-secondary-100 dark:bg-secondary-900 text-secondary-700 dark:text-secondary-300 rounded-lg hover:bg-secondary-200 dark:hover:bg-secondary-800 transition-colors text-sm flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                        </svg>
+                        Register
+                    </button>
+                </div>
+                
+                <!-- User Display (when logged in) -->
+                <div id="userDisplay" class="hidden flex items-center gap-2">
+                    <div class="bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 px-3 py-1.5 rounded-lg text-sm">
+                        <span class="user-name">User</span>
+                    </div>
+                    <button id="signOutBtn" class="px-3 py-1.5 bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-600 transition-colors text-sm">
+                        Sign Out
+                    </button>
+                </div>
+                
                 <button id="themeToggle" class="p-2 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
                     <!-- Moon icon for light mode -->
                     <svg xmlns="http://www.w3.org/2000/svg" class="hidden dark:block h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -411,6 +442,47 @@
             </div>
         </div>
     </header>
+    
+    <!-- Auth Modal (Login/Register) -->
+    <div id="authModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden animate-fade-in">
+        <div class="bg-white dark:bg-neutral-800 rounded-xl p-6 w-full max-w-md shadow-lg">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="authModalTitle" class="text-xl font-semibold">Log In</h2>
+                <button id="closeAuthModalBtn" class="p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            
+            <form id="authForm">
+                <div id="nameField" class="mb-4 hidden">
+                    <label for="displayName" class="block text-sm font-medium mb-1">Your Name</label>
+                    <input type="text" id="displayName" class="w-full p-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all" placeholder="Enter your name">
+                </div>
+                
+                <div class="mb-4">
+                    <label for="email" class="block text-sm font-medium mb-1">Email</label>
+                    <input type="email" id="email" class="w-full p-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all" placeholder="your@email.com" required>
+                </div>
+                
+                <div class="mb-6">
+                    <label for="password" class="block text-sm font-medium mb-1">Password</label>
+                    <input type="password" id="password" class="w-full p-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all" placeholder="••••••••" required>
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400 mt-1">Password must be at least 6 characters</p>
+                </div>
+                
+                <div class="flex justify-between items-center">
+                    <button type="button" id="toggleAuthModeBtn" class="text-sm text-primary-600 dark:text-primary-400 hover:underline">
+                        Create an account instead
+                    </button>
+                    <button type="submit" id="authSubmitBtn" class="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors shadow-md">
+                        Log In
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <main class="container mx-auto px-4 py-6 md:px-6">
         <!-- Navigation Tabs -->
@@ -1842,6 +1914,34 @@
                     }
                 });
                 
+                // Create session data to save to Firebase
+                const sessionData = {
+                    studentName: currentStudentName,
+                    question: `${dividend} ÷ ${divisor}`,
+                    expectedAnswer: expectedAnswer,
+                    userAnswer: userAnswer,
+                    isCorrect: isAnswerCorrect,
+                    timeTaken: timeRecorded,
+                    timestamp: new Date(),
+                    studentWork: studentWorkData,
+                    assignmentId: currentAssignment ? currentAssignment.id : null,
+                    assignmentName: currentAssignment ? currentAssignment.name : null
+                };
+                
+                // Save to local array
+                practiceSessions.push(sessionData);
+                
+                // Save to Firebase if user is authenticated
+                if (currentUser) {
+                    savePracticeSession(sessionData)
+                        .then(() => {
+                            console.log('Practice session saved to Firebase');
+                        })
+                        .catch(error => {
+                            console.error('Error saving to Firebase:', error);
+                        });
+                }
+                
                 // Create the result message
                 let resultMessage = `
                     <div class="flex justify-center mb-4">
@@ -1881,25 +1981,6 @@
                 
                 // Update the result content
                 resultsContent.innerHTML = resultMessage;
-                
-                // Save practice session data with properly formatted answer
-                const sessionData = {
-                    studentName: currentStudentName,
-                    question: `${dividend} ÷ ${divisor}`,
-                    dividend: dividend,
-                    divisor: divisor,
-                    expectedAnswer: expectedAnswer,
-                    userAnswer: userAnswer,
-                    isAnswerCorrect: isAnswerCorrect,
-                    isStepsCorrect: areStepsCorrect,
-                    timeTaken: timeRecorded,
-                    timeDisplay: timeDisplayStr,
-                    startCol: startCol,
-                    studentWork: studentWorkData, // Store the student's work
-                    sessionId: Date.now() // Add a unique ID for this session
-                };
-                
-                savePracticeSession(sessionData);
                 
                 // Disable all inputs
                 inputs.forEach(input => {
@@ -2602,46 +2683,84 @@
                 updateQuestionsContainer();
             });
             
+            // Create and add assignment
             assignmentForm.addEventListener('submit', function(e) {
                 e.preventDefault();
                 
-                const assignmentName = document.getElementById('assignment-name').value.trim();
-                if (!assignmentName) {
+                // Check if user is logged in
+                if (!currentUser) {
+                    showNotification('Please log in to create assignments', 'error');
+                    return;
+                }
+                
+                const name = document.getElementById('assignment-name').value.trim();
+                if (!name) {
                     showNotification('Please enter an assignment name', 'error');
                     return;
                 }
                 
-                // Collect all questions
+                // Get questions from the form
+                const questionContainer = document.getElementById('questions-container');
+                const questionDivs = questionContainer.querySelectorAll('.question-container');
                 const questions = [];
-                const questionSettings = document.querySelectorAll('.question-settings');
                 
-                for (let i = 0; i < questionSettings.length; i++) {
-                    const dividendInput = questionSettings[i].querySelector('.dividend-input');
-                    const divisorInput = questionSettings[i].querySelector('.divisor-input');
+                questionDivs.forEach((div, index) => {
+                    const dividendInput = div.querySelector('.dividend-input');
+                    const divisorInput = div.querySelector('.divisor-input');
                     
-                    const dividend = parseInt(dividendInput.value);
-                    const divisor = parseInt(divisorInput.value);
-                    
-                    if (isNaN(dividend) || isNaN(divisor) || dividend < 1 || divisor < 1) {
-                        showNotification(`Please enter valid numbers for Question ${i + 1}`, 'error');
-                        return;
+                    if (dividendInput && divisorInput) {
+                        const dividend = parseInt(dividendInput.value, 10);
+                        const divisor = parseInt(divisorInput.value, 10);
+                        
+                        if (!isNaN(dividend) && !isNaN(divisor) && divisor > 0) {
+                            questions.push({
+                                index: index + 1,
+                                dividend,
+                                divisor
+                            });
+                        }
                     }
-                    
-                    questions.push({
-                        dividend: dividend,
-                        divisor: divisor
-                    });
+                });
+                
+                if (questions.length === 0) {
+                    showNotification('Please add at least one valid question', 'error');
+                    return;
                 }
                 
-                // Create the assignment
-                const newAssignment = createAssignment(assignmentName, questions);
+                // Create assignment object
+                const assignment = {
+                    name,
+                    createdAt: new Date(),
+                    questions,
+                    createdBy: currentUser.uid,
+                    creatorName: currentUser.displayName || currentUser.email
+                };
                 
-                // Reset the form
-                document.getElementById('assignment-name').value = '';
-                updateQuestionsContainer();
-                
-                // Show success message
-                showNotification('Assignment created successfully!', 'success');
+                // Save to Firebase
+                saveAssignment(assignment)
+                    .then(savedAssignment => {
+                        // Add the saved assignment (with Firebase ID) to the local array
+                        assignments.push(savedAssignment);
+                        
+                        // Update assignments list
+                        updateAssignmentsList();
+                        
+                        // Update assignment options in the dropdown
+                        updateAssignmentSelectOptions();
+                        
+                        // Clear the form
+                        assignmentForm.reset();
+                        
+                        // Regenerate question inputs
+                        const numQuestions = document.getElementById('assignment-questions').value;
+                        generateQuestionInputs(parseInt(numQuestions, 10));
+                        
+                        showNotification('Assignment created and saved to cloud!', 'success');
+                    })
+                    .catch(error => {
+                        console.error('Error saving assignment:', error);
+                        showNotification('Error saving assignment. Please try again.', 'error');
+                    });
             });
             
             clearDataBtn.addEventListener('click', function() {
@@ -2829,6 +2948,342 @@
                 // Add horizontal lines at regular intervals for subtraction steps
                 addSubtractionLines();
             }
+            
+            // Firebase Integration
+            
+            // Firebase Configuration - REPLACE WITH YOUR OWN CONFIG
+            const firebaseConfig = {
+                apiKey: "AIzaSyAjeN1G2XHJzhebC6ASEKcb0jJmL0B3WFw",
+                authDomain: "division-9008d.firebaseapp.com",
+                projectId: "division-9008d",
+                storageBucket: "division-9008d.firebasestorage.app",
+                messagingSenderId: "962268664278",
+                appId: "1:962268664278:web:5cb0d46d41a038da975477",
+                measurementId: "G-GZHW33ZYTZ"
+            };
+            
+            // Initialize Firebase
+            firebase.initializeApp(firebaseConfig);
+            const auth = firebase.auth();
+            const db = firebase.firestore();
+            
+            // Global auth state
+            let currentUser = null;
+            
+            // Listen for auth state changes
+            auth.onAuthStateChanged(function(user) {
+                currentUser = user;
+                updateAuthUI();
+                if (user) {
+                    // User is signed in
+                    console.log("User is signed in:", user.displayName || user.email);
+                    loadUserData();
+                } else {
+                    // User is signed out
+                    console.log("User is signed out");
+                }
+            });
+            
+            // Update UI based on auth state
+            function updateAuthUI() {
+                const authSection = document.getElementById('authSection');
+                const userDisplay = document.getElementById('userDisplay');
+                
+                if (currentUser) {
+                    authSection.classList.add('hidden');
+                    userDisplay.classList.remove('hidden');
+                    userDisplay.querySelector('.user-name').textContent = currentUser.displayName || currentUser.email;
+                    
+                    // Pre-fill student name if logged in
+                    const studentNameInput = document.getElementById('student-name');
+                    if (studentNameInput && (currentUser.displayName || currentUser.email)) {
+                        studentNameInput.value = currentUser.displayName || currentUser.email.split('@')[0];
+                    }
+                    
+                    // Load assignments and practice data
+                    loadAssignments();
+                    loadPracticeSessions();
+                } else {
+                    if (authSection) authSection.classList.remove('hidden');
+                    if (userDisplay) userDisplay.classList.add('hidden');
+                }
+            }
+            
+            // Sign in with email/password
+            function signIn(email, password) {
+                return auth.signInWithEmailAndPassword(email, password)
+                    .then((userCredential) => {
+                        showNotification('Signed in successfully!', 'success');
+                        return userCredential.user;
+                    })
+                    .catch((error) => {
+                        showNotification(`Error: ${error.message}`, 'error');
+                        throw error;
+                    });
+            }
+            
+            // Sign up with email/password
+            function signUp(email, password, displayName) {
+                return auth.createUserWithEmailAndPassword(email, password)
+                    .then((userCredential) => {
+                        // Update user profile
+                        return userCredential.user.updateProfile({
+                            displayName: displayName
+                        }).then(() => {
+                            showNotification('Account created successfully!', 'success');
+                            return userCredential.user;
+                        });
+                    })
+                    .catch((error) => {
+                        showNotification(`Error: ${error.message}`, 'error');
+                        throw error;
+                    });
+            }
+            
+            // Sign out
+            function signOut() {
+                return auth.signOut()
+                    .then(() => {
+                        showNotification('Signed out successfully!', 'success');
+                    })
+                    .catch((error) => {
+                        showNotification(`Error: ${error.message}`, 'error');
+                        throw error;
+                    });
+            }
+            
+            // Save practice session to Firebase
+            function savePracticeSession(session) {
+                if (!currentUser) return Promise.reject('User not authenticated');
+                
+                return db.collection('practiceSessions')
+                    .doc(currentUser.uid)
+                    .collection('sessions')
+                    .add({
+                        ...session,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    })
+                    .then(() => {
+                        console.log('Practice session saved to Firebase');
+                        return session;
+                    })
+                    .catch((error) => {
+                        console.error('Error saving practice session:', error);
+                        throw error;
+                    });
+            }
+            
+            // Load practice sessions from Firebase
+            function loadPracticeSessions() {
+                if (!currentUser) return Promise.resolve([]);
+                
+                return db.collection('practiceSessions')
+                    .doc(currentUser.uid)
+                    .collection('sessions')
+                    .orderBy('timestamp', 'desc')
+                    .get()
+                    .then((querySnapshot) => {
+                        const sessions = [];
+                        querySnapshot.forEach((doc) => {
+                            sessions.push({
+                                id: doc.id,
+                                ...doc.data()
+                            });
+                        });
+                        
+                        // Update the practice sessions array
+                        practiceSessions = sessions;
+                        
+                        // Update the UI
+                        updateSessionsTable();
+                        
+                        return sessions;
+                    })
+                    .catch((error) => {
+                        console.error('Error loading practice sessions:', error);
+                        return [];
+                    });
+            }
+            
+            // Save assignment to Firebase
+            function saveAssignment(assignment) {
+                if (!currentUser) return Promise.reject('User not authenticated');
+                
+                return db.collection('assignments')
+                    .doc(currentUser.uid)
+                    .collection('assignments')
+                    .add({
+                        ...assignment,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    })
+                    .then((docRef) => {
+                        console.log('Assignment saved to Firebase');
+                        return { id: docRef.id, ...assignment };
+                    })
+                    .catch((error) => {
+                        console.error('Error saving assignment:', error);
+                        throw error;
+                    });
+            }
+            
+            // Load assignments from Firebase
+            function loadAssignments() {
+                if (!currentUser) return Promise.resolve([]);
+                
+                return db.collection('assignments')
+                    .doc(currentUser.uid)
+                    .collection('assignments')
+                    .orderBy('timestamp', 'desc')
+                    .get()
+                    .then((querySnapshot) => {
+                        const loadedAssignments = [];
+                        querySnapshot.forEach((doc) => {
+                            loadedAssignments.push({
+                                id: doc.id,
+                                ...doc.data()
+                            });
+                        });
+                        
+                        // Update the assignments array
+                        assignments = loadedAssignments;
+                        
+                        // Update assignment select options
+                        updateAssignmentSelectOptions();
+                        
+                        // Update assignments list in teacher dashboard
+                        updateAssignmentsList();
+                        
+                        return loadedAssignments;
+                    })
+                    .catch((error) => {
+                        console.error('Error loading assignments:', error);
+                        return [];
+                    });
+            }
+            
+            // Load user data
+            function loadUserData() {
+                // Load both assignments and practice sessions
+                return Promise.all([
+                    loadAssignments(),
+                    loadPracticeSessions()
+                ]);
+            }
+
+            // Authentication UI Event Handlers
+            document.addEventListener('DOMContentLoaded', function() {
+                // DOM Elements for Auth
+                const loginBtn = document.getElementById('loginBtn');
+                const registerBtn = document.getElementById('registerBtn');
+                const signOutBtn = document.getElementById('signOutBtn');
+                const authModal = document.getElementById('authModal');
+                const closeAuthModalBtn = document.getElementById('closeAuthModalBtn');
+                const authForm = document.getElementById('authForm');
+                const authModalTitle = document.getElementById('authModalTitle');
+                const toggleAuthModeBtn = document.getElementById('toggleAuthModeBtn');
+                const authSubmitBtn = document.getElementById('authSubmitBtn');
+                const nameField = document.getElementById('nameField');
+                
+                // Auth Mode
+                let isLoginMode = true;
+                
+                // Show auth modal in login mode
+                function showLoginModal() {
+                    isLoginMode = true;
+                    nameField.classList.add('hidden');
+                    authModalTitle.textContent = 'Log In';
+                    authSubmitBtn.textContent = 'Log In';
+                    toggleAuthModeBtn.textContent = 'Create an account instead';
+                    authModal.classList.remove('hidden');
+                    
+                    // Clear the form
+                    authForm.reset();
+                }
+                
+                // Show auth modal in register mode
+                function showRegisterModal() {
+                    isLoginMode = false;
+                    nameField.classList.remove('hidden');
+                    authModalTitle.textContent = 'Create Account';
+                    authSubmitBtn.textContent = 'Register';
+                    toggleAuthModeBtn.textContent = 'Log in instead';
+                    authModal.classList.remove('hidden');
+                    
+                    // Clear the form
+                    authForm.reset();
+                }
+                
+                // Close auth modal
+                function closeAuthModal() {
+                    authModal.classList.add('hidden');
+                }
+                
+                // Toggle between login and register modes
+                function toggleAuthMode() {
+                    if (isLoginMode) {
+                        showRegisterModal();
+                    } else {
+                        showLoginModal();
+                    }
+                }
+                
+                // Handle auth form submission
+                function handleAuthSubmit(e) {
+                    e.preventDefault();
+                    
+                    const email = document.getElementById('email').value.trim();
+                    const password = document.getElementById('password').value;
+                    
+                    if (!email || !password) {
+                        showNotification('Please fill in all fields', 'error');
+                        return;
+                    }
+                    
+                    if (isLoginMode) {
+                        // Login
+                        signIn(email, password)
+                            .then(() => {
+                                closeAuthModal();
+                            })
+                            .catch(error => {
+                                console.error('Login error:', error);
+                            });
+                    } else {
+                        // Register
+                        const displayName = document.getElementById('displayName').value.trim();
+                        
+                        if (!displayName) {
+                            showNotification('Please enter your name', 'error');
+                            return;
+                        }
+                        
+                        signUp(email, password, displayName)
+                            .then(() => {
+                                closeAuthModal();
+                            })
+                            .catch(error => {
+                                console.error('Registration error:', error);
+                            });
+                    }
+                }
+                
+                // Event Listeners for Auth UI
+                if (loginBtn) loginBtn.addEventListener('click', showLoginModal);
+                if (registerBtn) registerBtn.addEventListener('click', showRegisterModal);
+                if (signOutBtn) signOutBtn.addEventListener('click', signOut);
+                if (closeAuthModalBtn) closeAuthModalBtn.addEventListener('click', closeAuthModal);
+                if (toggleAuthModeBtn) toggleAuthModeBtn.addEventListener('click', toggleAuthMode);
+                if (authForm) authForm.addEventListener('submit', handleAuthSubmit);
+                
+                // Close modal when clicking outside
+                if (authModal) {
+                    authModal.addEventListener('click', function(e) {
+                        if (e.target === authModal) {
+                            closeAuthModal();
+                        }
+                    });
+                }
+            });
         });
     </script>
 </body>
