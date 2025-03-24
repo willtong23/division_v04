@@ -1968,12 +1968,27 @@
                 
                 // Save to Firebase if user is authenticated
                 if (currentUser) {
+                    console.log('Attempting to save to Firebase with user:', currentUser.uid);
                     savePracticeSession(sessionData)
-                        .then(() => {
-                            console.log('Practice session saved to Firebase');
+                        .then((result) => {
+                            console.log('Practice session saved to Firebase successfully!', result);
                         })
                         .catch(error => {
                             console.error('Error saving to Firebase:', error);
+                        });
+                } else {
+                    console.log('No authenticated user, trying anonymous sign in first');
+                    // Try to sign in anonymously before saving
+                    auth.signInAnonymously()
+                        .then((userCredential) => {
+                            console.log('Anonymous sign-in successful!', userCredential.user.uid);
+                            return savePracticeSession(sessionData);
+                        })
+                        .then((result) => {
+                            console.log('Practice session saved to Firebase after anonymous sign-in!', result);
+                        })
+                        .catch(error => {
+                            console.error('Error with anonymous auth or saving:', error);
                         });
                 }
                 
@@ -2998,9 +3013,32 @@
             };
             
             // Initialize Firebase
-            firebase.initializeApp(firebaseConfig);
-            const auth = firebase.auth();
-            const db = firebase.firestore();
+            console.log('Initializing Firebase with config:', firebaseConfig);
+            try {
+                firebase.initializeApp(firebaseConfig);
+                console.log('Firebase initialized successfully');
+                
+                const auth = firebase.auth();
+                console.log('Firebase auth initialized');
+                
+                const db = firebase.firestore();
+                console.log('Firebase Firestore initialized');
+                
+                // Test write to a simple collection to verify database connection
+                db.collection('app_logs').add({
+                    event: 'app_init',
+                    timestamp: new Date().toString(),
+                    userAgent: navigator.userAgent
+                })
+                .then(docRef => {
+                    console.log('Test write successful with ID:', docRef.id);
+                })
+                .catch(error => {
+                    console.error('Test write failed:', error);
+                });
+            } catch (error) {
+                console.error('Error initializing Firebase:', error);
+            }
             
             // Global auth state
             let currentUser = null;
@@ -3089,18 +3127,38 @@
             
             // Save practice session to Firebase
             function savePracticeSession(session) {
-                if (!currentUser) return Promise.reject('User not authenticated');
+                console.log('savePracticeSession called with session:', session);
+                
+                if (!currentUser) {
+                    console.error('No authenticated user when saving session');
+                    return Promise.reject('User not authenticated');
+                }
+                
+                console.log('Saving to path: practiceSessions/' + currentUser.uid + '/sessions');
+                
+                // Add some simple data to test database connection
+                const dataToSave = {
+                    ...session,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    testField: 'This is a test to verify Firebase connection'
+                };
                 
                 return db.collection('practiceSessions')
                     .doc(currentUser.uid)
                     .collection('sessions')
-                    .add({
-                        ...session,
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                    })
-                    .then(() => {
-                        console.log('Practice session saved to Firebase');
-                        return session;
+                    .add(dataToSave)
+                    .then((docRef) => {
+                        console.log('Practice session saved to Firebase with ID:', docRef.id);
+                        
+                        // Also try saving to root collection as a test
+                        console.log('Also saving to test_sessions collection as a backup');
+                        return db.collection('test_sessions').add({
+                            ...dataToSave,
+                            savedAt: new Date().toString()
+                        }).then(() => {
+                            console.log('Backup save successful');
+                            return session;
+                        });
                     })
                     .catch((error) => {
                         console.error('Error saving practice session:', error);
