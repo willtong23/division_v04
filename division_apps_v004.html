@@ -551,10 +551,10 @@
                     <span class="relative z-10">Demo Mode</span>
                     <span class="absolute inset-0 bg-white dark:bg-neutral-700 rounded-lg shadow-soft transition-opacity opacity-0"></span>
                 </button>
-                <button id="teacherDashboardBtn" class="relative app-tab z-10 min-w-[120px] px-4 py-2.5 text-sm font-medium rounded-lg transition-colors">
+                <a href="dashboard.html" class="relative app-tab z-10 min-w-[120px] px-4 py-2.5 text-sm font-medium rounded-lg transition-colors" target="_blank">
                     <span class="relative z-10">Teacher Dashboard</span>
                     <span class="absolute inset-0 bg-white dark:bg-neutral-700 rounded-lg shadow-soft transition-opacity opacity-0"></span>
-                </button>
+                </a>
             </div>
         </div>
         
@@ -835,16 +835,6 @@
             </div>
         </div>
         
-        <!-- Teacher Dashboard Section -->
-        <div id="teacherDashboard" class="hidden animate-fade-in">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                <div class="lg:col-span-1">
-                    <!-- Assignment Creation Form -->
-                    <div class="card-container bg-white dark:bg-neutral-800 mb-5">
-                        <div class="px-6 py-4 border-b border-neutral-200 dark:border-neutral-700">
-                            <h2 class="text-lg font-semibold">Create Assignment</h2>
-                            <p class="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Create custom division problems</p>
-                        </div>
                         <form id="assignmentForm" class="p-4">
                             <div class="space-y-3">
                                 <div>
@@ -1068,10 +1058,10 @@
             // DOM Elements - Navigation
             const demoModeBtn = document.getElementById('demoModeBtn');
             const practiceModeBtn = document.getElementById('practiceModeBtn');
-            const teacherDashboardBtn = document.getElementById('teacherDashboardBtn');
+            // Teacher dashboard moved to standalone page
             const demoMode = document.getElementById('demoMode');
             const practiceMode = document.getElementById('practiceMode');
-            const teacherDashboard = document.getElementById('teacherDashboard');
+            // Teacher dashboard moved to standalone page
             
             // DOM Elements - Demo Mode
             const demoForm = document.getElementById('demoForm');
@@ -2673,12 +2663,12 @@
                 // Remove active class from all tabs
                 demoModeBtn.classList.remove('active');
                 practiceModeBtn.classList.remove('active');
-                teacherDashboardBtn.classList.remove('active');
+                // Teacher dashboard moved to standalone page
                 
                 // Remove background from all tab buttons
                 demoModeBtn.querySelector('span:last-child').classList.add('opacity-0');
                 practiceModeBtn.querySelector('span:last-child').classList.add('opacity-0');
-                teacherDashboardBtn.querySelector('span:last-child').classList.add('opacity-0');
+                // Teacher dashboard moved to standalone page
                 
                 // Add active class to selected tab
                 tab.classList.add('active');
@@ -2697,7 +2687,7 @@
                 
                 demoMode.classList.remove('hidden');
                 practiceMode.classList.add('hidden');
-                teacherDashboard.classList.add('hidden');
+                // Teacher dashboard moved to standalone page
             });
             
             practiceModeBtn.addEventListener('click', function() {
@@ -2705,7 +2695,7 @@
                 
                 practiceMode.classList.remove('hidden');
                 demoMode.classList.add('hidden');
-                teacherDashboard.classList.add('hidden');
+                // Teacher dashboard moved to standalone page
                 
                 // Reset to settings view
                 practiceSettingsSection.classList.remove('hidden');
@@ -2714,16 +2704,6 @@
                 practiceResults.classList.add('hidden');
             });
             
-            teacherDashboardBtn.addEventListener('click', function() {
-                setActiveTab(this);
-                
-                teacherDashboard.classList.remove('hidden');
-                demoMode.classList.add('hidden');
-                practiceMode.classList.add('hidden');
-                
-                updateSessionsTable();
-                updateAssignmentsList();
-            });
             
             // Student filter change
             studentFilter.addEventListener('change', function() {
