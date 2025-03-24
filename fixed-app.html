@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fixed Long Division Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body class="p-4">
+    <h1 class="text-2xl font-bold mb-4">Fixed Division App</h1>
+    <p class="mb-4">This page is a simplified version to test Firebase functionality.</p>
+    
+    <div id="authStatus" class="mb-4 p-4 bg-gray-100 rounded">Loading authentication status...</div>
+    
+    <div id="controls" class="mb-4">
+        <button id="signInBtn" class="bg-blue-500 text-white px-4 py-2 rounded">Sign In Anonymously</button>
+        <button id="testWriteBtn" class="bg-green-500 text-white px-4 py-2 rounded ml-2">Test Write to Firestore</button>
+    </div>
+    
+    <div id="results" class="p-4 bg-gray-100 rounded overflow-auto max-h-96"></div>
+
+    <script>
+        // Utility to add results to the output div
+        function log(message, isError = false) {
+            const resultsDiv = document.getElementById('results');
+            const p = document.createElement('p');
+            p.textContent = message;
+            p.className = isError ? 'text-red-500' : 'text-green-500';
+            resultsDiv.appendChild(p);
+            
+            console.log(message);
+            if (isError) console.error(message);
+        }
+        
+        // Global variables
+        let auth, db, currentUser = null;
+        
+        // Initialize Firebase
+        function initializeFirebase() {
+            try {
+                log("Initializing Firebase...");
+                
+                const firebaseConfig = {
+                    apiKey: "AIzaSyAjeN1G2XHJzhebC6ASEKcb0jJmL0B3WFw",
+                    authDomain: "division-9008d.firebaseapp.com",
+                    projectId: "division-9008d",
+                    storageBucket: "division-9008d.firebasestorage.app",
+                    messagingSenderId: "962268664278",
+                    appId: "1:962268664278:web:5cb0d46d41a038da975477",
+                    measurementId: "G-GZHW33ZYTZ"
+                };
+                
+                // Initialize Firebase
+                const app = firebase.initializeApp(firebaseConfig);
+                log("Firebase app initialized");
+                
+                // Initialize Auth and Firestore
+                auth = firebase.auth();
+                log("Firebase Auth initialized");
+                
+                db = firebase.firestore();
+                log("Firestore initialized");
+                
+                // Set up auth state listener
+                auth.onAuthStateChanged(user => {
+                    log(`Auth state changed: ${user ? 'User signed in' : 'User signed out'}`);
+                    
+                    currentUser = user;
+                    updateAuthStatus();
+                });
+                
+                return true;
+            } catch (error) {
+                log(`Error initializing Firebase: ${error.message}`, true);
+                return false;
+            }
+        }
+        
+        // Update the auth status display
+        function updateAuthStatus() {
+            const authStatusDiv = document.getElementById('authStatus');
+            
+            if (currentUser) {
+                authStatusDiv.innerHTML = `
+                    <div class="text-green-500 font-bold">Signed In</div>
+                    <div>User ID: ${currentUser.uid}</div>
+                    <div>Anonymous: ${currentUser.isAnonymous ? 'Yes' : 'No'}</div>
+                `;
+            } else {
+                authStatusDiv.innerHTML = `
+                    <div class="text-red-500 font-bold">Not Signed In</div>
+                    <div>Please sign in to test Firebase functionality</div>
+                `;
+            }
+        }
+        
+        // Sign in anonymously
+        function signInAnonymously() {
+            log("Attempting anonymous sign in...");
+            
+            auth.signInAnonymously()
+                .then(userCredential => {
+                    log(`Anonymous sign-in successful: ${userCredential.user.uid}`);
+                })
+                .catch(error => {
+                    log(`Error signing in: ${error.message} (${error.code})`, true);
+                    
+                    if (error.code === 'auth/operation-not-allowed') {
+                        log('IMPORTANT: Anonymous authentication is not enabled in your Firebase project.', true);
+                        log('Please go to the Firebase console, navigate to Authentication > Sign-in methods, and enable Anonymous authentication.', true);
+                    }
+                });
+        }
+        
+        // Test write to Firestore
+        function testWrite() {
+            log("Testing write to Firestore...");
+            
+            // Try writing to a public collection first
+            db.collection('test_writes').add({
+                timestamp: new Date().toString(),
+                message: 'Test write from fixed app',
+                userId: currentUser ? currentUser.uid : 'not-signed-in'
+            })
+            .then(docRef => {
+                log(`Public write successful with ID: ${docRef.id}`);
+                
+                // If user is signed in, also try writing to a user-specific collection
+                if (currentUser) {
+                    return db.collection('user_data')
+                        .doc(currentUser.uid)
+                        .collection('test_writes')
+                        .add({
+                            timestamp: new Date().toString(),
+                            message: 'User-specific test write'
+                        });
+                }
+            })
+            .then(docRef => {
+                if (docRef) {
+                    log(`User-specific write successful with ID: ${docRef.id}`);
+                }
+            })
+            .catch(error => {
+                log(`Error writing to Firestore: ${error.message}`, true);
+            });
+        }
+        
+        // Set up event listeners
+        document.getElementById('signInBtn').addEventListener('click', signInAnonymously);
+        document.getElementById('testWriteBtn').addEventListener('click', testWrite);
+        
+        // Initialize app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            log("DOM loaded, initializing app...");
+            initializeFirebase();
+        });
+    </script>
+</body>
+</html> 
