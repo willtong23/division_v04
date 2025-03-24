@@ -44,6 +44,65 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Assignment Creation Panel -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-lg shadow-md mb-6">
+                    <div class="border-b border-gray-200 px-6 py-4">
+                        <h2 class="text-xl font-semibold">Create Assignment</h2>
+                        <p class="text-sm text-gray-500 mt-1">Create custom division problems</p>
+                    </div>
+                    <div class="p-6">
+                        <form id="assignmentForm" class="space-y-4">
+                            <div>
+                                <label for="assignment-name" class="block mb-1 text-sm font-medium">Assignment Name</label>
+                                <input type="text" id="assignment-name" class="w-full p-2 rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm" required placeholder="Math Homework 1">
+                            </div>
+                            
+                            <div>
+                                <label for="assignment-questions" class="block mb-1 text-sm font-medium">Number of Questions</label>
+                                <select id="assignment-questions" class="w-full p-2 rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm">
+                                    <option value="1">1 question</option>
+                                    <option value="2">2 questions</option>
+                                    <option value="3" selected>3 questions</option>
+                                    <option value="5">5 questions</option>
+                                    <option value="10">10 questions</option>
+                                </select>
+                            </div>
+                            
+                            <div id="questions-container" class="space-y-3">
+                                <!-- Question settings will be generated here -->
+                            </div>
+                            
+                            <div class="flex justify-end">
+                                <button type="submit" class="px-4 py-2 bg-gradient-to-r from-indigo-500 to-blue-600 text-white rounded-lg hover:from-indigo-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-md">
+                                    Save Assignment
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Assignments List -->
+                <div class="bg-white rounded-lg shadow-md">
+                    <div class="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+                        <h2 class="text-xl font-semibold">Assignments</h2>
+                        <span id="assignmentCount" class="px-2.5 py-1 bg-gray-100 text-xs font-medium rounded-full">0 assignments</span>
+                    </div>
+                    
+                    <div id="no-assignments-message" class="p-4 text-center text-gray-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <p>No assignments created yet.</p>
+                        <p class="text-sm mt-1">Create your first assignment above.</p>
+                    </div>
+                    
+                    <div id="assignments-list" class="p-4 space-y-3 max-h-96 overflow-y-auto">
+                        <!-- Assignment list items will be generated here -->
+                    </div>
+                </div>
+            </div>
+
             <!-- Student Sessions Panel -->
             <div class="lg:col-span-2">
                 <div class="bg-white rounded-lg shadow-md">
@@ -576,6 +635,7 @@
                 if (user) {
                     showNotification('Signed in successfully');
                     loadCollections();
+                    loadAssignments(); // Load assignments
                 } else {
                     showNotification('You are not signed in');
                     collectionsList.innerHTML = '<li class="p-3 bg-yellow-50 text-yellow-800 rounded-lg">Please sign in to view collections</li>';
@@ -612,6 +672,65 @@
                 }
             });
             
+            // Assignment form submission
+            const assignmentForm = document.getElementById('assignmentForm');
+            if (assignmentForm) {
+                assignmentForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    // Check if user is logged in
+                    if (!currentUser) {
+                        showNotification('Please log in to create assignments', 'error');
+                        return;
+                    }
+                    
+                    const name = document.getElementById('assignment-name').value.trim();
+                    if (!name) {
+                        showNotification('Please enter an assignment name', 'error');
+                        return;
+                    }
+                    
+                    // Get questions from the form
+                    const questionContainer = document.getElementById('questions-container');
+                    const questionDivs = questionContainer.querySelectorAll('.question-container');
+                    const questions = [];
+                    
+                    questionDivs.forEach(questionDiv => {
+                        const dividendInput = questionDiv.querySelector('.dividend-input');
+                        const divisorInput = questionDiv.querySelector('.divisor-input');
+                        
+                        if (dividendInput && divisorInput) {
+                            const dividend = parseInt(dividendInput.value);
+                            const divisor = parseInt(divisorInput.value);
+                            
+                            if (!isNaN(dividend) && !isNaN(divisor) && dividend > 0 && divisor > 0) {
+                                questions.push({
+                                    dividend: dividend,
+                                    divisor: divisor
+                                });
+                            }
+                        }
+                    });
+                    
+                    if (questions.length === 0) {
+                        showNotification('Please enter at least one valid question', 'error');
+                        return;
+                    }
+                    
+                    // Save assignment to Firebase
+                    createAssignment(name, questions);
+                });
+            }
+            
+            // Assignment questions select
+            const assignmentQuestionsSelect = document.getElementById('assignment-questions');
+            if (assignmentQuestionsSelect) {
+                assignmentQuestionsSelect.addEventListener('change', updateQuestionsContainer);
+                
+                // Initial update
+                updateQuestionsContainer();
+            }
+            
             // Sort table headers
             document.querySelectorAll('#sessionsTable th').forEach((header, index) => {
                 header.addEventListener('click', function() {
@@ -638,6 +757,230 @@
             // Initial connection test
             testConnection();
         });
+        
+        // Assignment functions
+        
+        // Create a new assignment
+        function createAssignment(name, questions) {
+            // Assignment data
+            const assignment = {
+                name: name,
+                questions: questions,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                createdBy: currentUser.uid,
+                creatorName: currentUser.displayName || currentUser.email || 'Anonymous User'
+            };
+            
+            // Save to Firebase
+            db.collection('assignments')
+                .add(assignment)
+                .then(docRef => {
+                    showNotification(`Assignment "${name}" created successfully!`, 'success');
+                    
+                    // Reset form
+                    document.getElementById('assignment-name').value = '';
+                    updateQuestionsContainer();
+                    
+                    // Reload assignments
+                    loadAssignments();
+                })
+                .catch(error => {
+                    showNotification(`Error creating assignment: ${error.message}`, 'error');
+                });
+        }
+        
+        // Update questions container based on selected number of questions
+        function updateQuestionsContainer() {
+            const container = document.getElementById('questions-container');
+            if (!container) return;
+            
+            const numQuestions = parseInt(document.getElementById('assignment-questions').value);
+            container.innerHTML = '';
+            
+            for (let i = 0; i < numQuestions; i++) {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'question-container p-3 bg-gray-50 rounded-lg';
+                
+                questionDiv.innerHTML = `
+                    <div class="mb-2 font-medium text-sm">Question ${i + 1}</div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs mb-1">Dividend</label>
+                            <input type="number" class="dividend-input w-full p-2 rounded-lg border border-gray-300 text-sm" min="1" required value="${generateRandomNumber(10, 9999)}">
+                        </div>
+                        <div>
+                            <label class="block text-xs mb-1">Divisor</label>
+                            <input type="number" class="divisor-input w-full p-2 rounded-lg border border-gray-300 text-sm" min="1" required value="${generateRandomNumber(2, 99)}">
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(questionDiv);
+            }
+        }
+        
+        // Generate a random number between min and max
+        function generateRandomNumber(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+        
+        // Load assignments from Firebase
+        function loadAssignments() {
+            if (!currentUser) {
+                updateAssignmentList([]);
+                return;
+            }
+            
+            db.collection('assignments')
+                .orderBy('timestamp', 'desc')
+                .get()
+                .then(snapshot => {
+                    const assignments = [];
+                    snapshot.forEach(doc => {
+                        assignments.push({
+                            id: doc.id,
+                            ...doc.data()
+                        });
+                    });
+                    
+                    updateAssignmentList(assignments);
+                })
+                .catch(error => {
+                    showNotification(`Error loading assignments: ${error.message}`, 'error');
+                    updateAssignmentList([]);
+                });
+        }
+        
+        // Update the assignments list UI
+        function updateAssignmentList(assignments) {
+            const assignmentsList = document.getElementById('assignments-list');
+            const noAssignmentsMessage = document.getElementById('no-assignments-message');
+            const assignmentCount = document.getElementById('assignmentCount');
+            
+            if (!assignmentsList || !noAssignmentsMessage || !assignmentCount) return;
+            
+            // Update count
+            assignmentCount.textContent = assignments.length > 0 ? 
+                `${assignments.length} assignment${assignments.length !== 1 ? 's' : ''}` : 
+                '0 assignments';
+            
+            // Show/hide message
+            if (assignments.length === 0) {
+                noAssignmentsMessage.classList.remove('hidden');
+                assignmentsList.innerHTML = '';
+                return;
+            }
+            
+            noAssignmentsMessage.classList.add('hidden');
+            assignmentsList.innerHTML = '';
+            
+            // Add assignments to list
+            assignments.forEach(assignment => {
+                const item = document.createElement('div');
+                item.className = 'bg-gray-50 rounded-lg p-3 animate-fade-in';
+                
+                // Format timestamp
+                const timestamp = assignment.timestamp ? 
+                    new Date(assignment.timestamp.toDate()).toLocaleString() : 
+                    'Unknown date';
+                
+                item.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="font-medium">${assignment.name}</h3>
+                            <p class="text-xs text-gray-500 mt-1">${assignment.questions.length} question${assignment.questions.length !== 1 ? 's' : ''} • Created ${timestamp}</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button class="view-btn p-1.5 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                            </button>
+                            <button class="delete-btn p-1.5 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                // View button
+                item.querySelector('.view-btn').addEventListener('click', () => {
+                    showAssignmentDetails(assignment);
+                });
+                
+                // Delete button
+                item.querySelector('.delete-btn').addEventListener('click', () => {
+                    if (confirm(`Are you sure you want to delete "${assignment.name}"?`)) {
+                        deleteAssignment(assignment.id);
+                    }
+                });
+                
+                assignmentsList.appendChild(item);
+            });
+        }
+        
+        // Delete an assignment
+        function deleteAssignment(id) {
+            db.collection('assignments')
+                .doc(id)
+                .delete()
+                .then(() => {
+                    showNotification('Assignment deleted successfully', 'success');
+                    loadAssignments();
+                })
+                .catch(error => {
+                    showNotification(`Error deleting assignment: ${error.message}`, 'error');
+                });
+        }
+        
+        // Show assignment details in modal
+        function showAssignmentDetails(assignment) {
+            modalContent.innerHTML = '';
+            
+            // Header
+            const header = document.createElement('div');
+            header.className = 'mb-4 p-4 bg-gray-50 rounded-lg';
+            header.innerHTML = `
+                <h3 class="font-medium text-lg">${assignment.name}</h3>
+                <p class="text-sm text-gray-500 mt-1">
+                    Created by: ${assignment.creatorName || 'Unknown'}
+                    <br>
+                    Date: ${assignment.timestamp ? new Date(assignment.timestamp.toDate()).toLocaleString() : 'Unknown'}
+                </p>
+            `;
+            modalContent.appendChild(header);
+            
+            // Questions
+            const questionsDiv = document.createElement('div');
+            questionsDiv.className = 'space-y-3';
+            
+            assignment.questions.forEach((question, index) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'p-4 bg-gray-50 rounded-lg';
+                
+                questionDiv.innerHTML = `
+                    <h4 class="font-medium">Question ${index + 1}</h4>
+                    <div class="grid grid-cols-2 gap-2 mt-2">
+                        <div class="text-sm"><span class="font-medium">Dividend:</span> ${question.dividend}</div>
+                        <div class="text-sm"><span class="font-medium">Divisor:</span> ${question.divisor}</div>
+                    </div>
+                    <div class="text-sm mt-2">
+                        <span class="font-medium">Answer:</span> ${Math.floor(question.dividend / question.divisor)}
+                        ${question.dividend % question.divisor !== 0 ? ` with remainder ${question.dividend % question.divisor}` : ''}
+                    </div>
+                `;
+                
+                questionsDiv.appendChild(questionDiv);
+            });
+            
+            modalContent.appendChild(questionsDiv);
+            
+            // Show the modal
+            resultsModal.classList.remove('hidden');
+        }
     </script>
 </body>
 </html> 
