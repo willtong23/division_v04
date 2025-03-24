@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Division App Teacher Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen font-['Poppins']">
+    <header class="bg-white shadow-sm">
+        <div class="container mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <h1 class="text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-blue-500">
+                    Division App Teacher Dashboard
+                </h1>
+            </div>
+            <div id="authStatus" class="flex items-center space-x-4">
+                <div id="userInfo" class="hidden">
+                    <span class="text-sm font-medium text-gray-700">Signed in as: <span id="userName" class="text-indigo-600">User</span></span>
+                </div>
+                <button id="signInBtn" class="px-4 py-2 bg-indigo-500 text-white rounded-lg text-sm">Sign In Anonymously</button>
+                <button id="signOutBtn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm hidden">Sign Out</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4">
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Database Connection Status</h2>
+            <div id="connectionStatus" class="p-4 bg-gray-100 rounded-lg">
+                <p>Checking connection...</p>
+            </div>
+            <div class="mt-4">
+                <button id="testConnectionBtn" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm">
+                    Test Connection
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Student Sessions Panel -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-lg shadow-md">
+                    <div class="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+                        <h2 class="text-xl font-semibold">Student Practice Sessions</h2>
+                        <div class="flex items-center">
+                            <span id="sessionCount" class="px-3 py-1 bg-gray-100 text-xs font-medium rounded-full mr-2">
+                                0 sessions
+                            </span>
+                            <button id="refreshDataBtn" class="px-3 py-1.5 bg-blue-500 text-white text-sm rounded-lg flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="p-6">
+                        <div class="mb-4 flex flex-wrap gap-2">
+                            <label for="student-filter" class="inline-flex items-center">
+                                <span class="text-sm font-medium mr-2">Filter by student:</span>
+                                <select id="student-filter" class="p-1.5 rounded border border-gray-300 text-sm">
+                                    <option value="all">All students</option>
+                                </select>
+                            </label>
+                        </div>
+
+                        <!-- Sessions Table -->
+                        <div class="overflow-hidden border border-gray-200 rounded-lg">
+                            <table id="sessionsTable" class="w-full border-collapse">
+                                <thead>
+                                    <tr class="bg-gray-100 text-left text-sm">
+                                        <th class="p-3 cursor-pointer border-b border-r border-gray-200">Student <span class="sort-icon text-indigo-500">↕</span></th>
+                                        <th class="p-3 cursor-pointer border-b border-r border-gray-200">Question <span class="sort-icon text-indigo-500">↕</span></th>
+                                        <th class="p-3 cursor-pointer border-b border-r border-gray-200">Answer <span class="sort-icon text-indigo-500">↕</span></th>
+                                        <th class="p-3 cursor-pointer border-b border-r border-gray-200">Status <span class="sort-icon text-indigo-500">↕</span></th>
+                                        <th class="p-3 cursor-pointer border-b border-gray-200">Time <span class="sort-icon text-indigo-500">↕</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sessionsTableBody">
+                                    <!-- Table rows will be generated here -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div id="noDataMessage" class="py-12 text-center text-gray-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            <p>No practice sessions found.</p>
+                            <p class="text-sm mt-1">Session data will appear here when students complete practice.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Collections Panel -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-lg shadow-md">
+                    <div class="border-b border-gray-200 px-6 py-4">
+                        <h2 class="text-xl font-semibold">Firebase Collections</h2>
+                    </div>
+                    <div class="p-6">
+                        <ul id="collectionsList" class="space-y-2">
+                            <li class="p-3 bg-gray-100 rounded-lg animate-pulse">Loading collections...</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Results Modal -->
+    <div id="resultsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold">Practice Details</h3>
+                <button id="closeModalBtn" class="p-1 rounded-full hover:bg-gray-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div id="modalContent" class="mt-4">
+                <!-- Modal content will be generated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration and Initialization
+        const firebaseConfig = {
+            apiKey: "AIzaSyAjeN1G2XHJzhebC6ASEKcb0jJmL0B3WFw",
+            authDomain: "division-9008d.firebaseapp.com",
+            projectId: "division-9008d",
+            storageBucket: "division-9008d.firebasestorage.app",
+            messagingSenderId: "962268664278",
+            appId: "1:962268664278:web:5cb0d46d41a038da975477",
+            measurementId: "G-GZHW33ZYTZ"
+        };
+
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        
+        // Global Variables
+        let currentUser = null;
+        let practiceSessions = [];
+        let studentNames = new Set();
+        let currentStudentFilter = 'all';
+
+        // DOM Elements
+        const connectionStatus = document.getElementById('connectionStatus');
+        const testConnectionBtn = document.getElementById('testConnectionBtn');
+        const signInBtn = document.getElementById('signInBtn');
+        const signOutBtn = document.getElementById('signOutBtn');
+        const userInfo = document.getElementById('userInfo');
+        const userName = document.getElementById('userName');
+        const collectionsList = document.getElementById('collectionsList');
+        const studentFilter = document.getElementById('student-filter');
+        const sessionsTableBody = document.getElementById('sessionsTableBody');
+        const sessionCount = document.getElementById('sessionCount');
+        const noDataMessage = document.getElementById('noDataMessage');
+        const refreshDataBtn = document.getElementById('refreshDataBtn');
+        const resultsModal = document.getElementById('resultsModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const modalContent = document.getElementById('modalContent');
+
+        // Display notification
+        function showNotification(message, type = 'info') {
+            const notificationDiv = document.createElement('div');
+            notificationDiv.className = `fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 transition-opacity duration-300 ${
+                type === 'success' ? 'bg-green-500 text-white' :
+                type === 'error' ? 'bg-red-500 text-white' :
+                'bg-blue-500 text-white'
+            }`;
+            
+            notificationDiv.textContent = message;
+            document.body.appendChild(notificationDiv);
+            
+            setTimeout(() => {
+                notificationDiv.classList.add('opacity-0');
+                setTimeout(() => notificationDiv.remove(), 300);
+            }, 3000);
+        }
+
+        // Test Firebase connection
+        function testConnection() {
+            connectionStatus.innerHTML = '<p class="text-yellow-600">Testing connection...</p>';
+            
+            db.collection('test_connection')
+                .add({
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    message: 'Connection test'
+                })
+                .then((docRef) => {
+                    connectionStatus.innerHTML = `
+                        <p class="text-green-600 font-medium">✓ Connection successful!</p>
+                        <p class="text-sm mt-1">Document created with ID: ${docRef.id}</p>
+                        <p class="text-sm mt-1">Time: ${new Date().toLocaleString()}</p>
+                    `;
+                    showNotification('Connection test successful!', 'success');
+                })
+                .catch((error) => {
+                    connectionStatus.innerHTML = `
+                        <p class="text-red-600 font-medium">✗ Connection failed</p>
+                        <p class="text-sm mt-1">Error: ${error.message}</p>
+                    `;
+                    showNotification('Connection failed: ' + error.message, 'error');
+                });
+        }
+
+        // Sign in anonymously
+        function signInAnonymously() {
+            auth.signInAnonymously()
+                .then(() => {
+                    showNotification('Signed in anonymously', 'success');
+                })
+                .catch((error) => {
+                    showNotification('Error signing in: ' + error.message, 'error');
+                    
+                    if (error.code === 'auth/operation-not-allowed') {
+                        showNotification('Anonymous authentication is not enabled in your Firebase project', 'error');
+                    }
+                });
+        }
+
+        // Sign out
+        function signOut() {
+            auth.signOut()
+                .then(() => {
+                    showNotification('Signed out successfully', 'success');
+                })
+                .catch((error) => {
+                    showNotification('Error signing out: ' + error.message, 'error');
+                });
+        }
+
+        // Update auth UI
+        function updateAuthUI() {
+            if (currentUser) {
+                userInfo.classList.remove('hidden');
+                signInBtn.classList.add('hidden');
+                signOutBtn.classList.remove('hidden');
+                userName.textContent = currentUser.isAnonymous ? 'Anonymous User' : (currentUser.displayName || currentUser.email);
+            } else {
+                userInfo.classList.add('hidden');
+                signInBtn.classList.remove('hidden');
+                signOutBtn.classList.add('hidden');
+            }
+        }
+
+        // Load Firebase collections
+        function loadCollections() {
+            collectionsList.innerHTML = '<li class="p-3 bg-gray-100 rounded-lg animate-pulse">Loading collections...</li>';
+            
+            // Get all collections (this is a simplified approach)
+            const collections = ['app_logs', 'test_connection', 'test_writes', 'test_sessions', 'user_data', 'practiceSessions'];
+            
+            Promise.all(collections.map(collectionName => {
+                return db.collection(collectionName)
+                    .limit(1)
+                    .get()
+                    .then(snapshot => ({
+                        name: collectionName,
+                        exists: !snapshot.empty,
+                        count: '?', // Firestore doesn't have a simple way to count documents
+                    }))
+                    .catch(() => ({
+                        name: collectionName,
+                        exists: false,
+                        count: '0'
+                    }));
+            }))
+            .then(collectionsInfo => {
+                collectionsList.innerHTML = '';
+                
+                collectionsInfo.forEach(collection => {
+                    const item = document.createElement('li');
+                    item.className = `p-3 ${collection.exists ? 'bg-green-50 text-green-800' : 'bg-gray-50 text-gray-500'} rounded-lg flex justify-between items-center`;
+                    
+                    item.innerHTML = `
+                        <span>${collection.name}</span>
+                        <span class="px-2 py-1 text-xs ${collection.exists ? 'bg-green-100' : 'bg-gray-200'} rounded-full">
+                            ${collection.exists ? 'Available' : 'Empty/Unavailable'}
+                        </span>
+                    `;
+                    
+                    item.addEventListener('click', () => {
+                        loadCollectionData(collection.name);
+                    });
+                    
+                    collectionsList.appendChild(item);
+                });
+                
+                // Add a special option for public data
+                const publicItem = document.createElement('li');
+                publicItem.className = 'p-3 bg-blue-50 text-blue-800 rounded-lg flex justify-between items-center';
+                publicItem.innerHTML = `
+                    <span>All Public Data</span>
+                    <span class="px-2 py-1 text-xs bg-blue-100 rounded-full">View</span>
+                `;
+                publicItem.addEventListener('click', () => {
+                    loadAllPublicData();
+                });
+                collectionsList.appendChild(publicItem);
+            })
+            .catch(error => {
+                collectionsList.innerHTML = `<li class="p-3 bg-red-50 text-red-500 rounded-lg">Error loading collections: ${error.message}</li>`;
+            });
+        }
+
+        // Load specific collection data
+        function loadCollectionData(collectionName) {
+            showNotification(`Loading data from ${collectionName}...`);
+            
+            db.collection(collectionName)
+                .limit(50) // Limit to 50 documents for safety
+                .get()
+                .then(snapshot => {
+                    if (snapshot.empty) {
+                        showNotification(`No data found in ${collectionName}`, 'error');
+                        return;
+                    }
+                    
+                    // Process data into practice sessions format
+                    processDataFromCollection(snapshot.docs, collectionName);
+                })
+                .catch(error => {
+                    showNotification(`Error loading ${collectionName}: ${error.message}`, 'error');
+                });
+        }
+
+        // Load all public data 
+        function loadAllPublicData() {
+            showNotification('Loading all public practice data...');
+            
+            // Try different collections where public data might be stored
+            Promise.all([
+                db.collection('test_sessions').limit(50).get(),
+                db.collection('public_sessions').limit(50).get()
+            ])
+            .then(([testSnapshot, publicSnapshot]) => {
+                const allDocs = [
+                    ...testSnapshot.docs,
+                    ...publicSnapshot.docs
+                ];
+                
+                if (allDocs.length === 0) {
+                    showNotification('No public practice data found', 'error');
+                    return;
+                }
+                
+                processDataFromCollection(allDocs, 'Public Data');
+            })
+            .catch(error => {
+                showNotification(`Error loading public data: ${error.message}`, 'error');
+            });
+        }
+
+        // Process data from collections into practice sessions format
+        function processDataFromCollection(docs, source) {
+            const processedSessions = [];
+            
+            docs.forEach(doc => {
+                const data = doc.data();
+                
+                // Skip non-practice data
+                if (!data.studentName && !data.questionsData) {
+                    return;
+                }
+                
+                // Try to extract practice data
+                try {
+                    if (data.questionsData && Array.isArray(data.questionsData)) {
+                        // Handle full session data
+                        data.questionsData.forEach((question, index) => {
+                            processedSessions.push({
+                                id: doc.id + '_' + index,
+                                studentName: data.studentName || 'Unknown',
+                                question: `${question.dividend} ÷ ${question.divisor}`,
+                                answer: question.quotient || 'Unknown',
+                                status: question.isCorrect ? 'Correct' : 'Incorrect',
+                                timeSeconds: question.timeSeconds || 0,
+                                timestamp: data.timestamp ? new Date(data.timestamp.toDate()) : new Date(),
+                                fullData: question
+                            });
+                        });
+                    } else if (data.dividend && data.divisor) {
+                        // Handle single question data
+                        processedSessions.push({
+                            id: doc.id,
+                            studentName: data.studentName || 'Unknown',
+                            question: `${data.dividend} ÷ ${data.divisor}`,
+                            answer: data.quotient || 'Unknown',
+                            status: data.isCorrect ? 'Correct' : 'Incorrect',
+                            timeSeconds: data.timeSeconds || 0,
+                            timestamp: data.timestamp ? new Date(data.timestamp.toDate()) : new Date(),
+                            fullData: data
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error processing document:', error, data);
+                }
+            });
+            
+            if (processedSessions.length > 0) {
+                practiceSessions = processedSessions;
+                updateSessionsTable();
+                updateStudentFilter();
+                showNotification(`Loaded ${processedSessions.length} practice sessions from ${source}`, 'success');
+            } else {
+                showNotification(`No practice data found in ${source}`, 'error');
+            }
+        }
+
+        // Update student filter dropdown
+        function updateStudentFilter() {
+            studentNames.clear();
+            
+            // Extract all student names
+            practiceSessions.forEach(session => {
+                if (session.studentName) {
+                    studentNames.add(session.studentName);
+                }
+            });
+            
+            // Update the dropdown
+            studentFilter.innerHTML = '<option value="all">All students</option>';
+            
+            Array.from(studentNames).sort().forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                studentFilter.appendChild(option);
+            });
+            
+            studentFilter.value = currentStudentFilter;
+        }
+
+        // Filter sessions by student name
+        function filterSessionsByStudent(name) {
+            if (name === 'all') {
+                return practiceSessions;
+            }
+            return practiceSessions.filter(session => session.studentName === name);
+        }
+
+        // Update the sessions table
+        function updateSessionsTable() {
+            sessionsTableBody.innerHTML = '';
+            
+            // Get filtered sessions
+            const filteredSessions = filterSessionsByStudent(currentStudentFilter);
+            sessionCount.textContent = filteredSessions.length > 0 ? 
+                filteredSessions.length + ' sessions' : '0 sessions';
+            
+            if (filteredSessions.length === 0) {
+                noDataMessage.classList.remove('hidden');
+                return;
+            }
+            
+            noDataMessage.classList.add('hidden');
+            
+            // Add rows to the table
+            filteredSessions.forEach(session => {
+                const row = document.createElement('tr');
+                row.className = 'border-b border-gray-200 hover:bg-gray-50 transition-colors';
+                
+                // Format the timestamp
+                const timestamp = session.timestamp instanceof Date ? 
+                    session.timestamp.toLocaleString() : 'Unknown';
+                
+                row.innerHTML = `
+                    <td class="p-3 border-r border-gray-200">${session.studentName}</td>
+                    <td class="p-3 border-r border-gray-200">${session.question}</td>
+                    <td class="p-3 border-r border-gray-200">${session.answer}</td>
+                    <td class="p-3 border-r border-gray-200">
+                        <span class="px-2 py-1 rounded-full text-xs ${
+                            session.status === 'Correct' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }">${session.status}</span>
+                    </td>
+                    <td class="p-3">${session.timeSeconds} sec</td>
+                `;
+                
+                // Add click event to show details
+                row.addEventListener('click', () => {
+                    showSessionDetails(session);
+                });
+                
+                sessionsTableBody.appendChild(row);
+            });
+        }
+
+        // Show session details in modal
+        function showSessionDetails(session) {
+            modalContent.innerHTML = '';
+            
+            // Basic info section
+            const basicInfo = document.createElement('div');
+            basicInfo.className = 'mb-4 p-4 bg-gray-50 rounded-lg';
+            basicInfo.innerHTML = `
+                <h4 class="font-medium mb-2">Basic Information</h4>
+                <div class="grid grid-cols-2 gap-2 text-sm">
+                    <div><span class="font-medium">Student:</span> ${session.studentName}</div>
+                    <div><span class="font-medium">Question:</span> ${session.question}</div>
+                    <div><span class="font-medium">Answer:</span> ${session.answer}</div>
+                    <div><span class="font-medium">Status:</span> 
+                        <span class="${session.status === 'Correct' ? 'text-green-600' : 'text-red-600'}">${session.status}</span>
+                    </div>
+                    <div><span class="font-medium">Time:</span> ${session.timeSeconds} seconds</div>
+                    <div><span class="font-medium">Date:</span> ${session.timestamp instanceof Date ? session.timestamp.toLocaleString() : 'Unknown'}</div>
+                </div>
+            `;
+            modalContent.appendChild(basicInfo);
+            
+            // Full data section
+            const fullData = document.createElement('div');
+            fullData.className = 'p-4 bg-gray-50 rounded-lg';
+            fullData.innerHTML = `
+                <h4 class="font-medium mb-2">Raw Data</h4>
+                <pre class="text-xs bg-white p-3 rounded border overflow-x-auto">${JSON.stringify(session.fullData, null, 2)}</pre>
+            `;
+            modalContent.appendChild(fullData);
+            
+            // Show the modal
+            resultsModal.classList.remove('hidden');
+        }
+
+        // Sort table by column
+        function sortTable(columnIndex, ascending) {
+            const rows = Array.from(sessionsTableBody.querySelectorAll('tr'));
+            
+            rows.sort((a, b) => {
+                const cellA = a.querySelectorAll('td')[columnIndex].textContent.trim();
+                const cellB = b.querySelectorAll('td')[columnIndex].textContent.trim();
+                
+                if (columnIndex === 0) {
+                    // Sort by student name
+                    return ascending ? 
+                        cellA.localeCompare(cellB) : 
+                        cellB.localeCompare(cellA);
+                } else if (columnIndex === 4) {
+                    // Sort by time (numeric)
+                    const timeA = parseInt(cellA) || 0;
+                    const timeB = parseInt(cellB) || 0;
+                    return ascending ? timeA - timeB : timeB - timeA;
+                } else {
+                    // Default string sort
+                    return ascending ? 
+                        cellA.localeCompare(cellB) : 
+                        cellB.localeCompare(cellA);
+                }
+            });
+            
+            // Rebuild the table
+            sessionsTableBody.innerHTML = '';
+            rows.forEach(row => sessionsTableBody.appendChild(row));
+        }
+
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auth state changes
+            auth.onAuthStateChanged(function(user) {
+                currentUser = user;
+                updateAuthUI();
+                
+                if (user) {
+                    showNotification('Signed in successfully');
+                    loadCollections();
+                } else {
+                    showNotification('You are not signed in');
+                    collectionsList.innerHTML = '<li class="p-3 bg-yellow-50 text-yellow-800 rounded-lg">Please sign in to view collections</li>';
+                }
+            });
+            
+            // Test connection button
+            testConnectionBtn.addEventListener('click', testConnection);
+            
+            // Sign in button
+            signInBtn.addEventListener('click', signInAnonymously);
+            
+            // Sign out button
+            signOutBtn.addEventListener('click', signOut);
+            
+            // Student filter change
+            studentFilter.addEventListener('change', function() {
+                currentStudentFilter = this.value;
+                updateSessionsTable();
+            });
+            
+            // Refresh data button
+            refreshDataBtn.addEventListener('click', loadCollections);
+            
+            // Close modal button
+            closeModalBtn.addEventListener('click', function() {
+                resultsModal.classList.add('hidden');
+            });
+            
+            // Close modal when clicking outside
+            resultsModal.addEventListener('click', function(e) {
+                if (e.target === resultsModal) {
+                    resultsModal.classList.add('hidden');
+                }
+            });
+            
+            // Sort table headers
+            document.querySelectorAll('#sessionsTable th').forEach((header, index) => {
+                header.addEventListener('click', function() {
+                    // Toggle sort direction
+                    const sortIcons = document.querySelectorAll('.sort-icon');
+                    let ascending = true;
+                    
+                    if (this.querySelector('.sort-icon').textContent === '↑') {
+                        // Currently ascending, switch to descending
+                        sortIcons.forEach(icon => icon.textContent = '↕');
+                        this.querySelector('.sort-icon').textContent = '↓';
+                        ascending = false;
+                    } else {
+                        // Switch to ascending
+                        sortIcons.forEach(icon => icon.textContent = '↕');
+                        this.querySelector('.sort-icon').textContent = '↑';
+                        ascending = true;
+                    }
+                    
+                    sortTable(index, ascending);
+                });
+            });
+            
+            // Initial connection test
+            testConnection();
+        });
+    </script>
+</body>
+</html> 
