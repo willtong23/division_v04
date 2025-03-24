@@ -3032,9 +3032,21 @@
                 })
                 .then(docRef => {
                     console.log('Test write successful with ID:', docRef.id);
+                    
+                    // Now force anonymous sign-in to ensure data persistence
+                    console.log('Attempting automatic anonymous sign-in');
+                    return auth.signInAnonymously();
+                })
+                .then(userCredential => {
+                    if (userCredential) {
+                        console.log('Automatic anonymous sign-in successful!', userCredential.user.uid);
+                    }
                 })
                 .catch(error => {
-                    console.error('Test write failed:', error);
+                    console.error('Test write or auto sign-in failed:', error);
+                    if (error.code === 'auth/operation-not-allowed') {
+                        console.error('Anonymous authentication is not enabled in Firebase console. Please enable it.');
+                    }
                 });
             } catch (error) {
                 console.error('Error initializing Firebase:', error);
@@ -3130,8 +3142,9 @@
                 console.log('savePracticeSession called with session:', session);
                 
                 if (!currentUser) {
-                    console.error('No authenticated user when saving session');
-                    return Promise.reject('User not authenticated');
+                    console.error('No authenticated user when saving session. Saving directly to public collection');
+                    // Save directly to a public collection without requiring auth
+                    return savePublicPracticeSession(session);
                 }
                 
                 console.log('Saving to path: practiceSessions/' + currentUser.uid + '/sessions');
@@ -3162,6 +3175,29 @@
                     })
                     .catch((error) => {
                         console.error('Error saving practice session:', error);
+                        // Try the backup method if primary save fails
+                        return savePublicPracticeSession(session);
+                    });
+            }
+            
+            // Save to a public collection without requiring authentication
+            function savePublicPracticeSession(session) {
+                console.log('Attempting to save to public collection as fallback');
+                
+                const dataToSave = {
+                    ...session,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    savedAt: new Date().toString(),
+                    saveMethod: 'public_fallback'
+                };
+                
+                return db.collection('public_practice_data').add(dataToSave)
+                    .then(docRef => {
+                        console.log('Successfully saved to public collection with ID:', docRef.id);
+                        return session;
+                    })
+                    .catch(error => {
+                        console.error('Error saving to public collection:', error);
                         throw error;
                     });
             }
