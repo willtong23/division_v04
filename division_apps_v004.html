@@ -1014,6 +1014,16 @@
                     alert("Registration functionality is being set up. For now, please enter your name in the practice settings and proceed.");
                 });
             });
+            
+            // Add password protection for Teacher Dashboard
+            document.getElementById('teacherDashboardLink').addEventListener('click', function() {
+                const password = prompt("Please enter the teacher password to access the dashboard:");
+                if (password === "9739") {
+                    window.open('dashboard.html', '_blank');
+                } else if (password !== null) {
+                    alert("Incorrect password. Access denied.");
+                }
+            });
         });
         
         // Theme state variables
