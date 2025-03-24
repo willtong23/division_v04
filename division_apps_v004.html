@@ -2222,11 +2222,11 @@
                 }, 1000);
             }
             
-            // Save practice session data
+            // Save practice session data to dashboard only
             function savePracticeSession(sessionData) {
-                practiceSessions.push(sessionData);
-                updateSessionsTable();
-                updateStudentFilter();
+                // Only save to Firebase, don't display in main app
+                console.log('Sending practice data to dashboard only');
+                return savePracticeSessionToFirebase(sessionData);
             }
             
             //
@@ -3227,7 +3227,7 @@
             }
             
             // Save practice session to Firebase
-            function savePracticeSession(session) {
+            function savePracticeSessionToFirebase(session) {
                 console.log('savePracticeSession called with session:', session);
                 
                 if (!currentUser) {
