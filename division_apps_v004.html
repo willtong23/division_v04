@@ -910,6 +910,39 @@
     <script>
         console.log("Script loading - checking login/register buttons");
         
+        // Add a simpler authentication approach
+        window.addEventListener('DOMContentLoaded', function() {
+            // Find buttons by their text content
+            function findButtonsByText(searchText) {
+                const elements = document.querySelectorAll('button, a');
+                return Array.from(elements).filter(el => 
+                    el.textContent.trim().includes(searchText)
+                );
+            }
+            
+            // Find login and register buttons
+            const loginButtons = findButtonsByText('Log In');
+            const registerButtons = findButtonsByText('Register');
+            
+            console.log("Found login buttons:", loginButtons.length);
+            console.log("Found register buttons:", registerButtons.length);
+            
+            // Add click handlers
+            loginButtons.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    alert("Login functionality is being set up. For now, please enter your name in the practice settings and proceed.");
+                });
+            });
+            
+            registerButtons.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    alert("Registration functionality is being set up. For now, please enter your name in the practice settings and proceed.");
+                });
+            });
+        });
+        
         // Theme state variables
         let userThemePreference = null; // null means use system preference
         
