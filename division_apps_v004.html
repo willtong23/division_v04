@@ -389,6 +389,61 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+    <!-- Initialize Firebase - Global variables -->
+    <script>
+        // Global Firebase variables
+        let auth, db;
+        
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAjeN1G2XHJzhebC6ASEKcb0jJmL0B3WFw",
+            authDomain: "division-9008d.firebaseapp.com",
+            projectId: "division-9008d",
+            storageBucket: "division-9008d.firebasestorage.app",
+            messagingSenderId: "962268664278",
+            appId: "1:962268664278:web:5cb0d46d41a038da975477",
+            measurementId: "G-GZHW33ZYTZ"
+        };
+
+        // Initialize Firebase and set up global variables
+        try {
+            console.log("Initializing Firebase...");
+            const app = firebase.initializeApp(firebaseConfig);
+            console.log("Firebase initialized successfully");
+            
+            auth = firebase.auth();
+            console.log("Firebase Auth initialized");
+            
+            db = firebase.firestore();
+            console.log("Firestore initialized");
+            
+            // Test write to confirm database access
+            db.collection("app_logs").add({
+                message: "App initialized",
+                timestamp: new Date().toString()
+            })
+            .then(() => console.log("Test write successful"))
+            .catch(error => console.error("Test write failed:", error));
+            
+            // Force anonymous authentication on page load
+            auth.signInAnonymously()
+                .then(user => {
+                    console.log("Anonymous auth successful:", user);
+                })
+                .catch(error => {
+                    console.error("Anonymous auth failed:", error);
+                    
+                    // If anonymous auth is disabled, log the specific error
+                    if (error.code === 'auth/operation-not-allowed') {
+                        console.error("IMPORTANT: Anonymous authentication is not enabled in your Firebase project!");
+                        console.error("Please go to the Firebase console, navigate to Authentication > Sign-in methods, and enable Anonymous authentication.");
+                    }
+                });
+        } catch (error) {
+            console.error("Error initializing Firebase:", error);
+        }
+    </script>
 </head>
 <body class="transition-colors duration-300 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 min-h-screen">
     <!-- Header -->
@@ -912,6 +967,34 @@
         
         // Add a simpler authentication approach
         window.addEventListener('DOMContentLoaded', function() {
+            // Global auth state
+            let currentUser = null;
+            
+            // Listen for auth state changes - this will run after Firebase is initialized
+            function setupAuthListener() {
+                console.log("Setting up auth listener");
+                if (typeof auth !== 'undefined') {
+                    auth.onAuthStateChanged(function(user) {
+                        console.log("Auth state changed - user:", user);
+                        currentUser = user;
+                        updateAuthUI();
+                        if (user) {
+                            // User is signed in
+                            console.log("User is signed in:", user.uid);
+                            loadUserData();
+                        } else {
+                            // User is signed out
+                            console.log("User is signed out");
+                        }
+                    });
+                } else {
+                    console.error("Auth variable is not defined when setting up listener");
+                }
+            }
+            
+            // Call this after all scripts have loaded
+            setTimeout(setupAuthListener, 1000);
+            
             // Find buttons by their text content
             function findButtonsByText(searchText) {
                 const elements = document.querySelectorAll('button, a');
@@ -3071,26 +3154,42 @@
             
             // Update UI based on auth state
             function updateAuthUI() {
+                console.log("Updating auth UI");
                 const authSection = document.getElementById('authSection');
                 const userDisplay = document.getElementById('userDisplay');
                 
+                if (!authSection || !userDisplay) {
+                    console.error("Auth UI elements not found");
+                    return;
+                }
+                
                 if (currentUser) {
+                    console.log("User is signed in, updating UI");
                     authSection.classList.add('hidden');
                     userDisplay.classList.remove('hidden');
-                    userDisplay.querySelector('.user-name').textContent = currentUser.displayName || currentUser.email;
+                    
+                    const nameElement = userDisplay.querySelector('.user-name');
+                    if (nameElement) {
+                        nameElement.textContent = currentUser.displayName || currentUser.email || "Anonymous User";
+                    }
                     
                     // Pre-fill student name if logged in
                     const studentNameInput = document.getElementById('student-name');
-                    if (studentNameInput && (currentUser.displayName || currentUser.email)) {
-                        studentNameInput.value = currentUser.displayName || currentUser.email.split('@')[0];
+                    if (studentNameInput) {
+                        if (currentUser.displayName || currentUser.email) {
+                            studentNameInput.value = currentUser.displayName || currentUser.email.split('@')[0];
+                        } else {
+                            studentNameInput.value = "Anonymous User";
+                        }
                     }
                     
-                    // Load assignments and practice data
-                    loadAssignments();
-                    loadPracticeSessions();
+                    // Load assignments and practice data if those functions exist
+                    if (typeof loadAssignments === 'function') loadAssignments();
+                    if (typeof loadPracticeSessions === 'function') loadPracticeSessions();
                 } else {
-                    if (authSection) authSection.classList.remove('hidden');
-                    if (userDisplay) userDisplay.classList.add('hidden');
+                    console.log("No user signed in, updating UI");
+                    authSection.classList.remove('hidden');
+                    userDisplay.classList.add('hidden');
                 }
             }
             

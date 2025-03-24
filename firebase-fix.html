@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Long Division Visualizer - Firebase Fix</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <h1>Long Division Visualizer - Firebase Fix</h1>
+    <p>This page will verify your Firebase configuration and show results below.</p>
+
+    <div id="results"></div>
+
+    <script>
+        // Append messages to the results div
+        function log(message, isError = false) {
+            const resultDiv = document.getElementById('results');
+            const p = document.createElement('p');
+            p.textContent = message;
+            if (isError) {
+                p.style.color = 'red';
+                console.error(message);
+            } else {
+                p.style.color = 'green';
+                console.log(message);
+            }
+            resultDiv.appendChild(p);
+        }
+
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAjeN1G2XHJzhebC6ASEKcb0jJmL0B3WFw",
+            authDomain: "division-9008d.firebaseapp.com",
+            projectId: "division-9008d",
+            storageBucket: "division-9008d.firebasestorage.app",
+            messagingSenderId: "962268664278",
+            appId: "1:962268664278:web:5cb0d46d41a038da975477",
+            measurementId: "G-GZHW33ZYTZ"
+        };
+
+        // Global Firebase variables
+        const app = firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        
+        // Test database connection
+        db.collection('test_connection').add({
+            timestamp: new Date().toString(),
+            test: 'Firebase connection test'
+        })
+        .then(docRef => {
+            log(`Test write successful with ID: ${docRef.id}`);
+        })
+        .catch(error => {
+            log(`Test write failed: ${error.message}`, true);
+        });
+
+        // Test anonymous authentication
+        auth.signInAnonymously()
+            .then(userCredential => {
+                log(`Anonymous auth successful! User ID: ${userCredential.user.uid}`);
+                
+                // Try writing to a user-specific collection
+                return db.collection('user_tests')
+                    .doc(userCredential.user.uid)
+                    .set({
+                        timestamp: new Date().toString(),
+                        userId: userCredential.user.uid
+                    });
+            })
+            .then(() => {
+                log('User-specific write successful!');
+            })
+            .catch(error => {
+                log(`Authentication or write failed: ${error.message} (${error.code})`, true);
+                
+                if (error.code === 'auth/operation-not-allowed') {
+                    log('IMPORTANT: Anonymous authentication is not enabled in your Firebase project.', true);
+                    log('Please go to the Firebase console, navigate to Authentication > Sign-in methods, and enable Anonymous authentication.', true);
+                }
+            });
+    </script>
+</body>
+</html> 
