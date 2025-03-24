@@ -40,6 +40,9 @@
                 <button id="testConnectionBtn" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm">
                     Test Connection
                 </button>
+                <button id="createTestDataBtn" class="ml-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm">
+                    Create Test Data
+                </button>
             </div>
         </div>
 
@@ -210,6 +213,10 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
         
+        console.log("Firebase initialized with config:", firebaseConfig);
+        console.log("Auth:", auth ? "Available" : "Not available");
+        console.log("Firestore:", db ? "Available" : "Not available");
+        
         // Global Variables
         let currentUser = null;
         let practiceSessions = [];
@@ -219,6 +226,7 @@
         // DOM Elements
         const connectionStatus = document.getElementById('connectionStatus');
         const testConnectionBtn = document.getElementById('testConnectionBtn');
+        const createTestDataBtn = document.getElementById('createTestDataBtn');
         const signInBtn = document.getElementById('signInBtn');
         const signOutBtn = document.getElementById('signOutBtn');
         const userInfo = document.getElementById('userInfo');
@@ -646,6 +654,9 @@
             // Test connection button
             testConnectionBtn.addEventListener('click', testConnection);
             
+            // Create test data button
+            createTestDataBtn.addEventListener('click', createTestData);
+            
             // Sign in button
             signInBtn.addEventListener('click', signInAnonymously);
             
@@ -985,6 +996,9 @@
                 return;
             }
             
+            console.log("Loading practice sessions...");
+            showNotification("Loading practice sessions...");
+            
             // Check both collections where practice data might be stored
             Promise.all([
                 // Check regular collection (requires auth)
@@ -1006,6 +1020,9 @@
                     })
             ])
             .then(([regularSnapshot, publicSnapshot]) => {
+                console.log("Regular collection documents:", regularSnapshot.docs.length);
+                console.log("Public collection documents:", publicSnapshot.docs.length);
+                
                 practiceSessions = [];
                 studentNames = new Set();
                 
@@ -1071,6 +1088,72 @@
                 timestamp: timestamp,
                 fullData: data // Keep the full data for reference
             };
+        }
+
+        // Create test practice session data
+        function createTestData() {
+            if (!currentUser) {
+                showNotification('Please sign in first', 'error');
+                return;
+            }
+
+            const testSessions = [
+                {
+                    studentName: "Test Student 1",
+                    dividend: 1234,
+                    divisor: 56,
+                    studentAnswer: "22r2",
+                    isCorrect: true,
+                    timeSeconds: 45,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                },
+                {
+                    studentName: "Test Student 2",
+                    dividend: 9876,
+                    divisor: 21,
+                    studentAnswer: "470r6",
+                    isCorrect: true,
+                    timeSeconds: 62,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                },
+                {
+                    studentName: "Test Student 1",
+                    dividend: 5432,
+                    divisor: 17,
+                    studentAnswer: "320",
+                    isCorrect: false,
+                    timeSeconds: 38,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                }
+            ];
+
+            // Save to both collections to ensure visibility
+            const savePromises = [];
+            
+            // Save to regular collection
+            testSessions.forEach(session => {
+                savePromises.push(
+                    db.collection('practiceSessions').add(session)
+                        .catch(error => console.error("Error adding to practiceSessions:", error))
+                );
+            });
+            
+            // Save to public collection
+            testSessions.forEach(session => {
+                savePromises.push(
+                    db.collection('public_practiceSessions').add(session)
+                        .catch(error => console.error("Error adding to public_practiceSessions:", error))
+                );
+            });
+            
+            Promise.all(savePromises)
+                .then(() => {
+                    showNotification(`Created ${testSessions.length * 2} test sessions`, 'success');
+                    loadPracticeSessions(); // Reload data to show new sessions
+                })
+                .catch(error => {
+                    showNotification(`Error creating test data: ${error.message}`, 'error');
+                });
         }
     </script>
 </body>
