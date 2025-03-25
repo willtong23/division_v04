@@ -627,19 +627,14 @@
                         </div>
                     </div>
                     
-                    <div>
-                        <h3 class="font-semibold text-lg mb-3">Raw Data</h3>
-                        <pre class="bg-gray-100 dark:bg-gray-900 p-4 rounded-lg overflow-auto text-xs font-mono max-h-60">${JSON.stringify(session.fullData, null, 2)}</pre>
-                    </div>
-                    
                     ${session.fullData.studentWork ? `
                     <div>
                         <h3 class="font-semibold text-lg mb-3">Student Work</h3>
                         <div class="bg-gray-100 dark:bg-gray-900 p-4 rounded-lg overflow-auto" id="workGrid">
-                            <p class="text-sm text-gray-500 mb-2">Student's division grid will appear here when available.</p>
+                            <p class="text-sm text-gray-500 mb-2">Loading student's division grid...</p>
                         </div>
                     </div>
-                    ` : ''}
+                    ` : '<div class="text-center p-4 text-gray-500">No student work data available for this session</div>'}
                 </div>
             `;
             
@@ -666,29 +661,69 @@
                 return;
             }
             
-            const gridSize = 10;
-            const gridHtml = Array(gridSize).fill().map(() => Array(gridSize).fill('')).map((row, rowIdx) => {
-                return `<div class="flex">
-                    ${row.map((_, colIdx) => {
-                        // Find student input for this cell
-                        const input = data.studentWork.find(input => 
-                            input.row === rowIdx && input.col === colIdx
-                        );
-                        
-                        let cellContent = input ? input.value : '';
-                        let classes = 'w-8 h-8 border border-gray-300 flex items-center justify-center text-sm';
-                        
-                        return `<div class="${classes}">${cellContent}</div>`;
-                    }).join('')}
-                </div>`;
-            }).join('');
+            // Extract dividend and divisor from question or directly from data
+            let dividend = data.dividend || '';
+            let divisor = data.divisor || '';
             
-            container.innerHTML = `
-                <div class="grid-container">
-                    ${gridHtml}
+            if (data.question && !dividend) {
+                const parts = data.question.split('÷');
+                if (parts.length === 2) {
+                    dividend = parts[0].trim();
+                    divisor = parts[1].trim();
+                }
+            }
+            
+            // Get student inputs organized by position
+            const gridInputs = {};
+            data.studentWork.forEach(input => {
+                const key = `${input.row},${input.col}`;
+                gridInputs[key] = input.value;
+            });
+            
+            // Create a more structured and detailed grid
+            const gridSize = 12; // Larger grid for better visualization
+            
+            let gridHtml = `
+                <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h4 class="font-medium text-blue-700 mb-2">Division Problem: ${dividend} ÷ ${divisor}</h4>
+                    <p class="text-sm text-blue-600">Student answer: ${data.userAnswer || data.answer || "No answer"}</p>
+                    <p class="text-sm text-blue-600">Expected answer: ${data.expectedAnswer || "Not specified"}</p>
                 </div>
-                <p class="text-xs text-gray-500 mt-2">Note: This is a simplified visualization of the student's work.</p>
+                <div class="grid-container border border-gray-300 rounded-lg overflow-hidden bg-white">
             `;
+            
+            // Build the grid rows
+            for (let row = 0; row < gridSize; row++) {
+                gridHtml += '<div class="flex">';
+                
+                for (let col = 0; col < gridSize; col++) {
+                    const key = `${row},${col}`;
+                    const value = gridInputs[key] || '';
+                    
+                    // Add special styling for different parts of the division
+                    let cellClass = 'w-10 h-10 border border-gray-200 flex items-center justify-center text-sm font-mono';
+                    
+                    // Highlight student inputs
+                    if (value) {
+                        cellClass += ' bg-indigo-50 font-bold text-indigo-700';
+                    }
+                    
+                    gridHtml += `<div class="${cellClass}">${value}</div>`;
+                }
+                
+                gridHtml += '</div>';
+            }
+            
+            gridHtml += `
+                </div>
+                <div class="mt-3 flex justify-between items-center">
+                    <div class="text-sm text-gray-600">
+                        <span class="inline-block w-3 h-3 bg-indigo-50 border border-gray-300 mr-1"></span> Student input
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = gridHtml;
         }
 
         // Event Listeners
