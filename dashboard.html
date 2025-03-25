@@ -661,16 +661,13 @@
                 return;
             }
             
-            console.log("Building work grid with student data:", data);
+            console.log("Building work grid with data:", data);
             
             // Extract problem information
-            const dividend = data.dividend || '';
-            const divisor = data.divisor || '';
-            const question = data.question || '';
             const answer = data.answer || data.userAnswer || "No answer";
             const expectedAnswer = data.expectedAnswer || "";
             
-            // Create a basic styled HTML for the long division
+            // Basic info in blue box
             let html = `
                 <div class="p-4 bg-blue-50 rounded-lg border border-blue-200 mb-4">
                     <div class="flex flex-wrap gap-x-6 gap-y-2">
@@ -680,92 +677,88 @@
                 </div>
             `;
             
-            // Create a clean visual representation of the division problem
-            html += '<div class="long-division bg-white border border-gray-200 rounded-lg p-4 font-mono overflow-auto">';
+            // Create simple grid container
+            html += '<div class="grid-container p-6 bg-white border border-gray-200 rounded-lg relative">';
             
-            // Get all student inputs organized by position
-            const studentInputs = {};
-            data.studentWork.forEach(input => {
-                studentInputs[`${input.row}-${input.col}`] = input.value;
-            });
-            
-            // SIMPLE TABLE-BASED APPROACH
-            html += `<table class="division-table border-collapse">`;
-            
-            // First row: quotient (student input at row 0)
-            html += `<tr class="quotient-row">`;
-            html += `<td class="text-center w-14"></td>`; // Space for divisor
-            
-            // Add cells for quotient (row 0 student inputs)
-            for (let i = 0; i < 10; i++) {
-                const value = studentInputs[`0-${i}`] || '';
-                const cellClass = value ? 'bg-indigo-50 text-indigo-700 font-bold' : '';
-                html += `<td class="text-xl text-center w-10 ${cellClass}">${value}</td>`;
-            }
-            html += `</tr>`;
-            
-            // Second row: divisor and dividend with division bracket
-            html += `<tr class="division-row">`;
-            
-            // Divisor cell
-            html += `<td class="text-xl text-right pr-2">${divisor}</td>`;
-            
-            // Division bracket (using borders)
-            html += `<td class="p-0 relative" colspan="${dividend.length}">`;
-            html += `<div class="absolute top-0 bottom-1/2 right-0 w-0.5 bg-black"></div>`; // vertical line
-            html += `<div class="absolute top-1/2 left-0 right-0 h-0.5 bg-black"></div>`; // horizontal line
-            
-            // Dividend with underline
-            html += `<table class="w-full border-collapse">`;
-            html += `<tr>`;
-            for (let i = 0; i < dividend.length; i++) {
-                html += `<td class="text-xl text-center w-10 border-b-2 border-black">${dividend[i]}</td>`;
-            }
-            html += `</tr>`;
-            html += `</table>`;
-            
-            html += `</td>`;
-            
-            // Fill remaining columns
-            html += `<td colspan="10"></td>`;
-            html += `</tr>`;
-            
-            // Find max row in student work
+            // Get grid bounds
+            let minRow = Number.MAX_SAFE_INTEGER;
             let maxRow = 0;
+            let minCol = Number.MAX_SAFE_INTEGER;
+            let maxCol = 0;
+            
             data.studentWork.forEach(input => {
-                if (input.row > maxRow) maxRow = input.row;
+                minRow = Math.min(minRow, input.row);
+                maxRow = Math.max(maxRow, input.row);
+                minCol = Math.min(minCol, input.col);
+                maxCol = Math.max(maxCol, input.col);
             });
             
-            // Add remaining student work rows (starting from row 1)
-            for (let row = 1; row <= maxRow + 1; row++) {
-                html += `<tr>`;
-                html += `<td></td>`; // Space for alignment
-                
-                // Check if there's a border needed for subtraction
-                let needsSubtractionLine = false;
-                if (row < maxRow) {
-                    for (let col = 0; col < 10; col++) {
-                        if (studentInputs[`${row+1}-${col}`]) {
-                            needsSubtractionLine = true;
-                            break;
-                        }
+            // Ensure we have reasonable grid limits
+            minRow = Math.min(minRow, 0);
+            minCol = Math.min(minCol, 0);
+            maxRow = Math.max(maxRow, 10);
+            maxCol = Math.max(maxCol, 10);
+            
+            // Create subtraction lines
+            let horizontalLines = [];
+            
+            // Add division bracket
+            let divisionBracket = `
+                <div class="absolute left-5 top-10 bottom-0 border-l-2 border-black"></div>
+                <div class="absolute left-5 top-10 right-10 border-t-2 border-black"></div>
+            `;
+            
+            html += divisionBracket;
+            
+            // Find cells that should have subtraction lines
+            // (This is a simple method - any row that has cells with values in the next row should have a line)
+            for (let row = minRow; row < maxRow; row++) {
+                for (let col = minCol; col <= maxCol; col++) {
+                    // Check if this cell has a value and there's a cell below it with a value
+                    const hasValue = data.studentWork.some(i => i.row === row && i.col === col);
+                    const hasCellBelow = data.studentWork.some(i => i.row === row+1 && i.col >= col-2 && i.col <= col+2);
+                    
+                    if (hasValue && hasCellBelow) {
+                        const top = (row + 1.5) * 40 + 15; // Position below the current row
+                        const left = Math.max(60, col * 40 + 20); // Start from divisor position or further right
+                        const width = (maxCol - col + 2) * 40;
+                        
+                        horizontalLines.push(`
+                            <div class="absolute border-t border-gray-400" 
+                                 style="top: ${top}px; left: ${left}px; width: ${width}px;"></div>
+                        `);
+                        break; // One line per row is enough
                     }
                 }
-                
-                // Fill in student inputs for this row
-                for (let col = 0; col < 10; col++) {
-                    const value = studentInputs[`${row}-${col}`] || '';
-                    const cellClass = value ? 'bg-indigo-50 text-indigo-700 font-bold' : '';
-                    const borderClass = needsSubtractionLine ? 'border-b border-gray-400' : '';
-                    
-                    html += `<td class="text-xl text-center w-10 ${cellClass} ${borderClass}">${value}</td>`;
-                }
-                
-                html += `</tr>`;
             }
             
-            html += `</table>`;
-            html += `</div>`;
+            // Add all horizontal lines
+            horizontalLines.forEach(line => {
+                html += line;
+            });
+            
+            // Create the grid with student inputs
+            html += '<div class="grid" style="grid-template-columns: repeat(15, 40px); gap: 0px;">';
+            
+            // Create the grid
+            for (let row = minRow; row <= maxRow; row++) {
+                for (let col = minCol; col <= maxCol; col++) {
+                    // Find if there's an input at this position
+                    const input = data.studentWork.find(i => i.row === row && i.col === col);
+                    const value = input ? input.value : '';
+                    
+                    // Style based on content
+                    let cellClass = 'flex items-center justify-center h-10 w-10 text-xl font-mono';
+                    if (value) {
+                        cellClass += ' bg-indigo-50 text-indigo-700 font-bold';
+                    }
+                    
+                    html += `<div class="${cellClass}">${value}</div>`;
+                }
+            }
+            
+            html += '</div>'; // End grid
+            html += '</div>'; // End grid container
             
             // Add legend
             html += `
@@ -773,10 +766,6 @@
                     <div class="flex items-center">
                         <span class="inline-block w-4 h-4 mr-1 bg-indigo-50 border border-indigo-200"></span>
                         <span>Student inputs</span>
-                    </div>
-                    <div class="flex items-center">
-                        <span class="inline-block w-6 border-b border-gray-400 mr-1"></span>
-                        <span>Subtraction lines</span>
                     </div>
                 </div>
             `;
