@@ -677,9 +677,6 @@
                 </div>
             `;
             
-            // Create simple grid container
-            html += '<div class="grid-container p-6 bg-white border border-gray-200 rounded-lg relative">';
-            
             // Get grid bounds
             let minRow = Number.MAX_SAFE_INTEGER;
             let maxRow = 0;
@@ -696,75 +693,64 @@
             // Ensure we have reasonable grid limits
             minRow = Math.min(minRow, 0);
             minCol = Math.min(minCol, 0);
-            maxRow = Math.max(maxRow, 10);
-            maxCol = Math.max(maxCol, 10);
+            maxRow = Math.max(maxRow, 6);
+            maxCol = Math.max(maxCol, 8);
             
-            // Create subtraction lines
-            let horizontalLines = [];
+            // Create grid container with relative positioning
+            html += '<div class="relative p-6 bg-white border border-gray-200 rounded-lg" style="min-height: 280px;">';
             
             // Add division bracket
-            let divisionBracket = `
-                <div class="absolute left-5 top-10 bottom-0 border-l-2 border-black"></div>
-                <div class="absolute left-5 top-10 right-10 border-t-2 border-black"></div>
+            html += `
+                <div class="absolute left-7 top-10 bottom-0 border-l-2 border-black"></div>
+                <div class="absolute left-7 top-10 w-[calc(100%-60px)] border-t-2 border-black"></div>
             `;
             
-            html += divisionBracket;
-            
-            // Find cells that should have subtraction lines
-            // (This is a simple method - any row that has cells with values in the next row should have a line)
-            for (let row = minRow; row < maxRow; row++) {
-                for (let col = minCol; col <= maxCol; col++) {
-                    // Check if this cell has a value and there's a cell below it with a value
-                    const hasValue = data.studentWork.some(i => i.row === row && i.col === col);
-                    const hasCellBelow = data.studentWork.some(i => i.row === row+1 && i.col >= col-2 && i.col <= col+2);
-                    
-                    if (hasValue && hasCellBelow) {
-                        const top = (row + 1.5) * 40 + 15; // Position below the current row
-                        const left = Math.max(60, col * 40 + 20); // Start from divisor position or further right
-                        const width = (maxCol - col + 2) * 40;
-                        
-                        horizontalLines.push(`
-                            <div class="absolute border-t border-gray-400" 
-                                 style="top: ${top}px; left: ${left}px; width: ${width}px;"></div>
-                        `);
-                        break; // One line per row is enough
-                    }
+            // Find rows with subtraction operations (need horizontal lines)
+            let rowsWithSubtraction = new Set();
+            for (let row = minRow + 1; row <= maxRow; row++) {
+                // Check if this row has student inputs
+                const hasInputsInRow = data.studentWork.some(input => input.row === row);
+                if (hasInputsInRow) {
+                    rowsWithSubtraction.add(row - 1); // Add line above this row
                 }
             }
             
-            // Add all horizontal lines
-            horizontalLines.forEach(line => {
-                html += line;
+            // Create the grid with exact positioning
+            html += `<div class="grid" style="grid-template-columns: repeat(${maxCol - minCol + 3}, 40px); grid-template-rows: repeat(${maxRow - minRow + 3}, 40px); position: relative;">`;
+            
+            // Add all student inputs
+            data.studentWork.forEach(input => {
+                const row = input.row - minRow + 1;
+                const col = input.col - minCol + 2; // +2 to leave space for division bracket
+                
+                // Skip empty inputs
+                if (!input.value) return;
+                
+                html += `
+                    <div class="flex items-center justify-center h-10 w-10 bg-purple-50 text-xl font-mono rounded"
+                         style="grid-row: ${row}; grid-column: ${col};">
+                        ${input.value}
+                    </div>
+                `;
             });
             
-            // Create the grid with student inputs
-            html += '<div class="grid" style="grid-template-columns: repeat(15, 40px); gap: 0px;">';
-            
-            // Create the grid
-            for (let row = minRow; row <= maxRow; row++) {
-                for (let col = minCol; col <= maxCol; col++) {
-                    // Find if there's an input at this position
-                    const input = data.studentWork.find(i => i.row === row && i.col === col);
-                    const value = input ? input.value : '';
-                    
-                    // Style based on content
-                    let cellClass = 'flex items-center justify-center h-10 w-10 text-xl font-mono';
-                    if (value) {
-                        cellClass += ' bg-indigo-50 text-indigo-700 font-bold';
-                    }
-                    
-                    html += `<div class="${cellClass}">${value}</div>`;
-                }
-            }
+            // Add horizontal lines for subtraction operations
+            rowsWithSubtraction.forEach(row => {
+                const gridRow = row - minRow + 2;
+                html += `
+                    <div class="border-t border-gray-400" 
+                         style="grid-row: ${gridRow}; grid-column: 3 / span ${maxCol - minCol + 2}; margin-top: 19px;"></div>
+                `;
+            });
             
             html += '</div>'; // End grid
-            html += '</div>'; // End grid container
+            html += '</div>'; // End container
             
             // Add legend
             html += `
-                <div class="mt-2 flex items-center space-x-4 text-sm text-gray-500">
-                    <div class="flex items-center">
-                        <span class="inline-block w-4 h-4 mr-1 bg-indigo-50 border border-indigo-200"></span>
+                <div class="mt-3 text-sm text-gray-500">
+                    <div class="flex items-center mb-1">
+                        <span class="inline-block w-4 h-4 mr-2 bg-purple-50 border border-purple-200 rounded"></span>
                         <span>Student inputs</span>
                     </div>
                 </div>
