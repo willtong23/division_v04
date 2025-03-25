@@ -668,77 +668,85 @@
             const answer = data.answer || data.userAnswer || "No answer";
             const expectedAnswer = data.expectedAnswer || "";
             
-            // Basic info section
             let html = `
-                <div class="bg-gray-50 p-4 rounded-lg mb-4">
-                    <h3 class="font-bold text-lg mb-2">Student Work</h3>
-                    <div class="mb-2"><span class="font-medium">Question:</span> ${question || `${dividend} ÷ ${divisor}`}</div>
-                    <div class="flex flex-wrap gap-4">
-                        <div><span class="font-medium">Student answer:</span> <span class="font-mono bg-white px-2 py-0.5 rounded border">${answer}</span></div>
-                        ${expectedAnswer ? `<div><span class="font-medium">Expected answer:</span> <span class="font-mono bg-white px-2 py-0.5 rounded border">${expectedAnswer}</span></div>` : ''}
+                <div class="space-y-4">
+                    <div class="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <h3 class="font-bold text-base mb-2">Solution Details</h3>
+                        <div class="flex flex-wrap gap-3">
+                            <div><span class="font-medium">Student answer:</span> <span class="font-mono bg-white px-2 py-0.5 rounded border">${answer}</span></div>
+                            ${expectedAnswer ? `<div><span class="font-medium">Expected answer:</span> <span class="font-mono bg-white px-2 py-0.5 rounded border">${expectedAnswer}</span></div>` : ''}
+                        </div>
                     </div>
-                </div>
-                
-                <div class="bg-white p-5 rounded-lg border border-gray-200 overflow-auto">
-                    <div class="division-problem relative font-mono">
-            `;
-            
-            // Set up the division symbol and original numbers
-            // This is similar to how the practice app displays division problems
-            html += `
-                <div class="flex relative mb-4">
-                    <!-- Divisor -->
-                    <div class="absolute left-0 top-0 text-xl">${divisor}</div>
                     
-                    <!-- Division symbol -->
-                    <div class="ml-8 relative">
-                        <!-- Horizontal line -->
-                        <div class="border-b-2 border-black pb-1">
-                            <!-- Dividend -->
-                            <div class="flex">
+                    <div class="long-division-container">
+                        <table class="long-division-table font-mono text-lg">
+                            <tr class="quotient-row">
+                                <!-- This row will show the quotient (student work) above the dividend -->
+                                <td class="w-10 text-center"></td> <!-- Space for divisor -->
+                                <td class="w-8 text-center"></td> <!-- Space for division symbol -->
             `;
             
-            // Add dividend digits spaced out
-            if (dividend) {
-                for (let i = 0; i < dividend.length; i++) {
-                    html += `<div class="w-10 text-center text-xl">${dividend[i]}</div>`;
-                }
+            // Add cells for each digit of the dividend (for quotient alignment)
+            for (let i = 0; i < dividend.length; i++) {
+                // Find if any student inputs exist at row 0
+                const studentInput = data.studentWork.find(input => input.row === 0 && input.col === i);
+                const cellClass = studentInput ? "bg-indigo-50 text-indigo-800 font-bold" : "";
+                html += `<td class="w-10 text-center ${cellClass}">${studentInput ? studentInput.value : ""}</td>`;
             }
             
             html += `
-                            </div>
-                        </div>
-                        
-                        <!-- Vertical line of division symbol -->
-                        <div class="absolute left-0 top-0 bottom-0 border-l-2 border-black"></div>
-                    </div>
-                </div>
+                            </tr>
+                            <tr class="division-symbol-row">
+                                <!-- This row has the divisor and division symbol -->
+                                <td class="w-10 text-right pr-1">${divisor}</td>
+                                <td class="w-8 text-center relative">
+                                    <div class="absolute top-1/2 right-0 w-full h-0.5 bg-black"></div>
+                                    <div class="absolute top-0 right-0 w-0.5 h-full bg-black"></div>
+                                </td>
             `;
             
-            // Organize student work by position
-            const studentWork = {};
+            // Add dividend digits
+            for (let i = 0; i < dividend.length; i++) {
+                html += `<td class="w-10 text-center border-b border-black">${dividend[i]}</td>`;
+            }
+            
+            html += `
+                            </tr>
+                        </table>
+                        
+                        <!-- Student work grid -->
+                        <div class="student-work-grid mt-1 ml-16"> <!-- Indent to align with dividend -->
+            `;
+            
+            // Group student inputs by row for organized display
+            const workByRow = {};
             data.studentWork.forEach(input => {
-                if (!studentWork[input.row]) {
-                    studentWork[input.row] = {};
+                if (input.row > 0) { // Skip row 0 (handled above as quotient)
+                    if (!workByRow[input.row]) {
+                        workByRow[input.row] = {};
+                    }
+                    workByRow[input.row][input.col] = input.value;
                 }
-                studentWork[input.row][input.col] = input.value;
             });
             
-            // Find the maximum row and column
-            const maxRow = Math.max(...data.studentWork.map(input => input.row), 5);
-            const maxCol = Math.max(...data.studentWork.map(input => input.col), 10);
+            // Find the maximum row and column in student work
+            const maxRow = Math.max(...data.studentWork.filter(input => input.row > 0).map(input => input.row), 0);
+            const maxCol = Math.max(...data.studentWork.map(input => input.col), dividend.length - 1);
             
-            // Add the student work rows with proper indentation to match division layout
-            html += '<div class="ml-8">';  // Indent to match the division symbol
-            
-            for (let row = 0; row <= maxRow; row++) {
-                html += '<div class="flex">';
+            // Create rows for student work
+            for (let row = 1; row <= maxRow + 1; row++) {
+                const hasData = workByRow[row] && Object.keys(workByRow[row]).length > 0;
+                
+                // Add a horizontal line before every other row (subtraction lines)
+                const needsLine = row % 2 === 0 && hasData;
+                
+                html += `<div class="flex items-center ${needsLine ? 'border-t border-gray-400 mt-1 pt-1' : ''}">`;
                 
                 for (let col = 0; col <= maxCol; col++) {
-                    const value = studentWork[row] && studentWork[row][col] ? studentWork[row][col] : '';
+                    const value = workByRow[row] && workByRow[row][col] ? workByRow[row][col] : '';
                     const cellClass = value 
-                        ? 'w-10 h-10 flex items-center justify-center text-xl font-mono bg-indigo-50 text-indigo-800 font-bold' 
-                        : 'w-10 h-10 flex items-center justify-center text-xl font-mono';
+                        ? 'w-10 h-8 flex items-center justify-center text-lg font-mono bg-indigo-50 text-indigo-800 font-bold' 
+                        : 'w-10 h-8 flex items-center justify-center text-lg font-mono';
                     
                     html += `<div class="${cellClass}">${value}</div>`;
                 }
@@ -747,12 +755,19 @@
             }
             
             html += `
+                        </div>
                     </div>
-                </div>
-                
-                <div class="mt-3 text-sm text-gray-500 flex items-center">
-                    <span class="inline-block w-4 h-4 mr-2 bg-indigo-50 border border-indigo-200"></span>
-                    <span>Student inputs</span>
+                    
+                    <div class="mt-2 text-sm text-gray-500 flex items-center space-x-3">
+                        <div class="flex items-center">
+                            <span class="inline-block w-4 h-4 mr-1 bg-indigo-50 border border-indigo-200"></span>
+                            <span>Student inputs</span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="inline-block w-6 border-t border-gray-400 mr-1"></span>
+                            <span>Subtraction steps</span>
+                        </div>
+                    </div>
                 </div>
             `;
             
