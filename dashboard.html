@@ -1154,8 +1154,23 @@
             
             console.log("Processing document:", id, data);
             
+            // Special handling for public_practice_data format
+            if (data.studentName === '12ddb' || data.saveMethod === 'public_fallback') {
+                console.log("Found 12ddb student data!");
+                return {
+                    id: id,
+                    studentName: data.studentName || "Unknown",
+                    question: data.question || `${data.dividend || "?"} ÷ ${data.divisor || "?"}`,
+                    answer: data.answer || data.studentAnswer || "No answer",
+                    status: data.isCorrect === true ? "Correct" : "Incorrect",
+                    timeSeconds: data.timeInSeconds || data.time || 0,
+                    timestamp: data.timestamp ? (data.timestamp.toDate ? data.timestamp.toDate() : new Date(data.timestamp)) : new Date(),
+                    fullData: data // Keep the full data for reference
+                };
+            }
+            
             // Check if the data has the required fields
-            if (!data.dividend && !data.divisor && !data.questionData) {
+            if (!data.dividend && !data.divisor && !data.questionData && !data.question) {
                 console.log("Document doesn't have required division data:", id);
                 return null;
             }
@@ -1172,28 +1187,31 @@
             
             // Handle different data formats
             let dividend, divisor, studentAnswer, isCorrect, timeSeconds;
+            let question = data.question; // Direct question field
             
-            if (data.questionData) {
+            if (question) {
+                // Use the direct question
+            } else if (data.questionData) {
                 // Format from newer versions
                 dividend = data.questionData.dividend || "?";
                 divisor = data.questionData.divisor || "?";
-                studentAnswer = data.studentAnswer || data.answer || "No answer";
-                isCorrect = data.isCorrect === true;
-                timeSeconds = data.timeSeconds || data.time || 0;
+                question = `${dividend} ÷ ${divisor}`;
             } else {
                 // Direct format
                 dividend = data.dividend || "?";
                 divisor = data.divisor || "?";
-                studentAnswer = data.studentAnswer || data.answer || "No answer";
-                isCorrect = data.isCorrect === true;
-                timeSeconds = data.timeSeconds || data.time || 0;
+                question = `${dividend} ÷ ${divisor}`;
             }
+            
+            studentAnswer = data.studentAnswer || data.answer || "No answer";
+            isCorrect = data.isCorrect === true;
+            timeSeconds = data.timeSeconds || data.timeInSeconds || data.time || 0;
             
             // Create standardized session object
             return {
                 id: id,
                 studentName: data.studentName || data.student || "Unknown Student",
-                question: `${dividend} ÷ ${divisor}`,
+                question: question,
                 answer: studentAnswer,
                 status: isCorrect ? "Correct" : "Incorrect",
                 timeSeconds: timeSeconds,
