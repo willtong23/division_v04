@@ -999,11 +999,25 @@
             console.log("Loading practice sessions...");
             showNotification("Loading practice sessions...");
             
+            // Add debug information container
+            const debugInfo = document.createElement('div');
+            debugInfo.className = 'mt-4 p-4 bg-gray-100 rounded-lg text-sm';
+            debugInfo.innerHTML = '<h3 class="font-bold mb-2">Debugging Collection Sources</h3><div id="debug-collections" class="space-y-1 font-mono text-xs"></div>';
+            
+            const debugContainer = document.getElementById('connectionStatus');
+            debugContainer.appendChild(debugInfo);
+            const debugCollections = document.getElementById('debug-collections');
+
+            // Record collection stats
+            const collectionCounts = {};
+            
             // First, get all user IDs to check their nested collections
             db.collection('practiceSessions')
                 .get()
                 .then(usersSnapshot => {
-                    console.log("Found user directories:", usersSnapshot.docs.length);
+                    const userCount = usersSnapshot.docs.length;
+                    console.log("Found user directories:", userCount);
+                    debugCollections.innerHTML += `<div>Found ${userCount} user directories in practiceSessions collection</div>`;
                     
                     // Fetch from all potential locations
                     const fetchPromises = [];
@@ -1017,11 +1031,16 @@
                                 .orderBy('timestamp', 'desc')
                                 .get()
                                 .then(snapshot => {
-                                    console.log(`User ${userDoc.id} sessions:`, snapshot.docs.length);
+                                    const count = snapshot.docs.length;
+                                    console.log(`User ${userDoc.id} sessions:`, count);
+                                    collectionCounts[`practiceSessions/${userDoc.id}/sessions`] = count;
+                                    debugCollections.innerHTML += `<div>Found ${count} sessions for user ${userDoc.id}</div>`;
                                     return snapshot;
                                 })
                                 .catch(error => {
                                     console.error(`Error fetching from user ${userDoc.id} sessions:`, error);
+                                    collectionCounts[`practiceSessions/${userDoc.id}/sessions`] = 0;
+                                    debugCollections.innerHTML += `<div class="text-red-500">Error accessing sessions for user ${userDoc.id}</div>`;
                                     return { docs: [] };
                                 })
                         );
@@ -1035,53 +1054,50 @@
                                 .collection('sessions')
                                 .orderBy('timestamp', 'desc')
                                 .get()
+                                .then(snapshot => {
+                                    const count = snapshot.docs.length;
+                                    collectionCounts[`practiceSessions/${currentUser.uid}/sessions`] = count;
+                                    debugCollections.innerHTML += `<div>Current user ${currentUser.uid} sessions: ${count}</div>`;
+                                    return snapshot;
+                                })
                                 .catch(error => {
                                     console.error("Error fetching from current user sessions:", error);
+                                    debugCollections.innerHTML += `<div class="text-red-500">Error accessing sessions for current user</div>`;
                                     return { docs: [] };
                                 })
                         );
                     }
                     
                     // 3. Check flat collections and fallbacks
-                    fetchPromises.push(
-                        db.collection('public_practice_data')
-                            .orderBy('timestamp', 'desc')
-                            .get()
-                            .catch(error => {
-                                console.error("Error fetching from public_practice_data:", error);
-                                return { docs: [] };
-                            })
-                    );
+                    const flatCollections = [
+                        'public_practice_data',
+                        'test_sessions',
+                        'practiceSessions',
+                        'public_practiceSessions',
+                        'practice_sessions',
+                        'sessions'
+                    ];
                     
-                    fetchPromises.push(
-                        db.collection('test_sessions')
-                            .orderBy('timestamp', 'desc')
-                            .get()
-                            .catch(error => {
-                                console.error("Error fetching from test_sessions:", error);
-                                return { docs: [] };
-                            })
-                    );
-                    
-                    fetchPromises.push(
-                        db.collection('practiceSessions')
-                            .orderBy('timestamp', 'desc')
-                            .get()
-                            .catch(error => {
-                                console.error("Error fetching from flat practiceSessions:", error);
-                                return { docs: [] };
-                            })
-                    );
-                    
-                    fetchPromises.push(
-                        db.collection('public_practiceSessions')
-                            .orderBy('timestamp', 'desc')
-                            .get()
-                            .catch(error => {
-                                console.error("Error fetching from public_practiceSessions:", error);
-                                return { docs: [] };
-                            })
-                    );
+                    flatCollections.forEach(collection => {
+                        fetchPromises.push(
+                            db.collection(collection)
+                                .orderBy('timestamp', 'desc')
+                                .get()
+                                .then(snapshot => {
+                                    const count = snapshot.docs.length;
+                                    console.log(`Collection ${collection}:`, count);
+                                    collectionCounts[collection] = count;
+                                    debugCollections.innerHTML += `<div>Collection ${collection}: ${count} documents</div>`;
+                                    return snapshot;
+                                })
+                                .catch(error => {
+                                    console.error(`Error fetching from ${collection}:`, error);
+                                    collectionCounts[collection] = 0;
+                                    debugCollections.innerHTML += `<div class="text-red-500">Error accessing collection ${collection}</div>`;
+                                    return { docs: [] };
+                                })
+                        );
+                    });
                     
                     // Process all fetched data
                     return Promise.all(fetchPromises);
@@ -1116,6 +1132,13 @@
                     // Update UI
                     updateStudentFilter();
                     updateSessionsTable();
+                    
+                    // Add collection count summary
+                    debugCollections.innerHTML += '<div class="border-t border-gray-300 my-2 pt-2"><strong>Summary:</strong></div>';
+                    for (const [collection, count] of Object.entries(collectionCounts)) {
+                        const color = count > 0 ? 'text-green-600 font-bold' : 'text-gray-500';
+                        debugCollections.innerHTML += `<div class="${color}">${collection}: ${count} items</div>`;
+                    }
                     
                     showNotification(`Loaded ${practiceSessions.length} practice sessions`, 'success');
                 })
