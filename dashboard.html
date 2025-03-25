@@ -523,13 +523,23 @@
 
         // Update the sessions table
         function updateSessionsTable() {
-            sessionsTableBody.innerHTML = '';
+            const tableBody = document.getElementById('sessionsTableBody');
+            const sessionCount = document.getElementById('sessionCount');
+            const noDataMessage = document.getElementById('noDataMessage');
             
-            // Get filtered sessions
-            const filteredSessions = filterSessionsByStudent(currentStudentFilter);
-            sessionCount.textContent = filteredSessions.length > 0 ? 
-                filteredSessions.length + ' sessions' : '0 sessions';
+            // Apply student filter
+            const selectedStudent = document.getElementById('student-filter').value;
+            const filteredSessions = selectedStudent === 'all' 
+                ? practiceSessions 
+                : practiceSessions.filter(session => session.studentName === selectedStudent);
             
+            // Update session count
+            sessionCount.textContent = `${filteredSessions.length} sessions`;
+            
+            // Clear the table
+            tableBody.innerHTML = '';
+            
+            // Show/hide no data message
             if (filteredSessions.length === 0) {
                 noDataMessage.classList.remove('hidden');
                 return;
@@ -537,100 +547,148 @@
             
             noDataMessage.classList.add('hidden');
             
-            // Add rows to the table
+            // Populate the table
             filteredSessions.forEach(session => {
                 const row = document.createElement('tr');
-                row.className = 'border-b border-gray-200 hover:bg-gray-50 transition-colors';
+                row.className = 'hover:bg-gray-50 dark:hover:bg-neutral-750 transition-colors';
                 
-                // Format the timestamp
-                const timestamp = session.timestamp instanceof Date ? 
-                    session.timestamp.toLocaleString() : 'Unknown';
+                // Format time
+                const formattedTime = typeof session.timeSeconds === 'number' 
+                    ? `${session.timeSeconds} sec` 
+                    : (session.timeSeconds || '0 sec');
+                
+                // Status class
+                const statusClass = session.status === 'Correct' 
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100' 
+                    : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100';
                 
                 row.innerHTML = `
-                    <td class="p-3 border-r border-gray-200">${session.studentName}</td>
-                    <td class="p-3 border-r border-gray-200">${session.question}</td>
-                    <td class="p-3 border-r border-gray-200">${session.answer}</td>
-                    <td class="p-3 border-r border-gray-200">
-                        <span class="px-2 py-1 rounded-full text-xs ${
-                            session.status === 'Correct' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }">${session.status}</span>
+                    <td class="p-3 border-b border-r border-gray-200">${session.studentName}</td>
+                    <td class="p-3 border-b border-r border-gray-200">${session.question}</td>
+                    <td class="p-3 border-b border-r border-gray-200">${session.answer}</td>
+                    <td class="p-3 border-b border-r border-gray-200">
+                        <span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">
+                            ${session.status}
+                        </span>
                     </td>
-                    <td class="p-3">${session.timeSeconds} sec</td>
+                    <td class="p-3 border-b border-gray-200 flex justify-between items-center">
+                        <span>${formattedTime}</span>
+                        <button class="display-work-btn px-2 py-1 text-xs bg-indigo-500 text-white rounded hover:bg-indigo-600 transition-colors" 
+                                data-id="${session.id}">
+                            Display
+                        </button>
+                    </td>
                 `;
                 
-                // Add click event to show details
-                row.addEventListener('click', () => {
-                    showSessionDetails(session);
+                tableBody.appendChild(row);
+            });
+            
+            // Add event listeners to display buttons
+            document.querySelectorAll('.display-work-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const sessionId = this.dataset.id;
+                    showStudentWorkModal(sessionId);
                 });
-                
-                sessionsTableBody.appendChild(row);
             });
         }
-
-        // Show session details in modal
-        function showSessionDetails(session) {
-            modalContent.innerHTML = '';
+        
+        // Show the student work modal
+        function showStudentWorkModal(sessionId) {
+            const modal = document.getElementById('resultsModal');
+            const modalContent = document.getElementById('modalContent');
+            const session = practiceSessions.find(s => s.id === sessionId);
             
-            // Basic info section
-            const basicInfo = document.createElement('div');
-            basicInfo.className = 'mb-4 p-4 bg-gray-50 rounded-lg';
-            basicInfo.innerHTML = `
-                <h4 class="font-medium mb-2">Basic Information</h4>
-                <div class="grid grid-cols-2 gap-2 text-sm">
-                    <div><span class="font-medium">Student:</span> ${session.studentName}</div>
-                    <div><span class="font-medium">Question:</span> ${session.question}</div>
-                    <div><span class="font-medium">Answer:</span> ${session.answer}</div>
-                    <div><span class="font-medium">Status:</span> 
-                        <span class="${session.status === 'Correct' ? 'text-green-600' : 'text-red-600'}">${session.status}</span>
+            if (!session) {
+                console.error('Session not found:', sessionId);
+                return;
+            }
+            
+            const formattedDate = session.timestamp ? session.timestamp.toLocaleString() : 'Unknown date';
+            
+            // Build modal content
+            modalContent.innerHTML = `
+                <div class="space-y-6">
+                    <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                        <h3 class="font-semibold text-lg mb-3">Basic Information</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <p class="mb-2"><span class="font-medium">Student:</span> ${session.studentName}</p>
+                                <p class="mb-2"><span class="font-medium">Answer:</span> ${session.answer}</p>
+                                <p><span class="font-medium">Time:</span> ${session.timeSeconds || 0} seconds</p>
+                            </div>
+                            <div>
+                                <p class="mb-2"><span class="font-medium">Question:</span> ${session.question}</p>
+                                <p class="mb-2">
+                                    <span class="font-medium">Status:</span> 
+                                    <span class="${session.status === 'Correct' ? 'text-green-600' : 'text-red-600'}">${session.status}</span>
+                                </p>
+                                <p><span class="font-medium">Date:</span> ${formattedDate}</p>
+                            </div>
+                        </div>
                     </div>
-                    <div><span class="font-medium">Time:</span> ${session.timeSeconds} seconds</div>
-                    <div><span class="font-medium">Date:</span> ${session.timestamp instanceof Date ? session.timestamp.toLocaleString() : 'Unknown'}</div>
+                    
+                    <div>
+                        <h3 class="font-semibold text-lg mb-3">Raw Data</h3>
+                        <pre class="bg-gray-100 dark:bg-gray-900 p-4 rounded-lg overflow-auto text-xs font-mono max-h-60">${JSON.stringify(session.fullData, null, 2)}</pre>
+                    </div>
+                    
+                    ${session.fullData.studentWork ? `
+                    <div>
+                        <h3 class="font-semibold text-lg mb-3">Student Work</h3>
+                        <div class="bg-gray-100 dark:bg-gray-900 p-4 rounded-lg overflow-auto" id="workGrid">
+                            <p class="text-sm text-gray-500 mb-2">Student's division grid will appear here when available.</p>
+                        </div>
+                    </div>
+                    ` : ''}
                 </div>
             `;
-            modalContent.appendChild(basicInfo);
-            
-            // Full data section
-            const fullData = document.createElement('div');
-            fullData.className = 'p-4 bg-gray-50 rounded-lg';
-            fullData.innerHTML = `
-                <h4 class="font-medium mb-2">Raw Data</h4>
-                <pre class="text-xs bg-white p-3 rounded border overflow-x-auto">${JSON.stringify(session.fullData, null, 2)}</pre>
-            `;
-            modalContent.appendChild(fullData);
             
             // Show the modal
-            resultsModal.classList.remove('hidden');
+            modal.classList.remove('hidden');
+            
+            // If the session has student work, build the grid visualization
+            if (session.fullData.studentWork && Array.isArray(session.fullData.studentWork)) {
+                setTimeout(() => {
+                    try {
+                        buildWorkGrid(session.fullData, document.getElementById('workGrid'));
+                    } catch (error) {
+                        console.error('Error building work grid:', error);
+                        document.getElementById('workGrid').innerHTML = `<p class="text-red-500">Error displaying student work: ${error.message}</p>`;
+                    }
+                }, 100);
+            }
         }
-
-        // Sort table by column
-        function sortTable(columnIndex, ascending) {
-            const rows = Array.from(sessionsTableBody.querySelectorAll('tr'));
+        
+        // Build visualization of student's division work
+        function buildWorkGrid(data, container) {
+            if (!data.studentWork || !Array.isArray(data.studentWork)) {
+                container.innerHTML = '<p class="text-gray-500">No work details available</p>';
+                return;
+            }
             
-            rows.sort((a, b) => {
-                const cellA = a.querySelectorAll('td')[columnIndex].textContent.trim();
-                const cellB = b.querySelectorAll('td')[columnIndex].textContent.trim();
-                
-                if (columnIndex === 0) {
-                    // Sort by student name
-                    return ascending ? 
-                        cellA.localeCompare(cellB) : 
-                        cellB.localeCompare(cellA);
-                } else if (columnIndex === 4) {
-                    // Sort by time (numeric)
-                    const timeA = parseInt(cellA) || 0;
-                    const timeB = parseInt(cellB) || 0;
-                    return ascending ? timeA - timeB : timeB - timeA;
-                } else {
-                    // Default string sort
-                    return ascending ? 
-                        cellA.localeCompare(cellB) : 
-                        cellB.localeCompare(cellA);
-                }
-            });
+            const gridSize = 10;
+            const gridHtml = Array(gridSize).fill().map(() => Array(gridSize).fill('')).map((row, rowIdx) => {
+                return `<div class="flex">
+                    ${row.map((_, colIdx) => {
+                        // Find student input for this cell
+                        const input = data.studentWork.find(input => 
+                            input.row === rowIdx && input.col === colIdx
+                        );
+                        
+                        let cellContent = input ? input.value : '';
+                        let classes = 'w-8 h-8 border border-gray-300 flex items-center justify-center text-sm';
+                        
+                        return `<div class="${classes}">${cellContent}</div>`;
+                    }).join('')}
+                </div>`;
+            }).join('');
             
-            // Rebuild the table
-            sessionsTableBody.innerHTML = '';
-            rows.forEach(row => sessionsTableBody.appendChild(row));
+            container.innerHTML = `
+                <div class="grid-container">
+                    ${gridHtml}
+                </div>
+                <p class="text-xs text-gray-500 mt-2">Note: This is a simplified visualization of the student's work.</p>
+            `;
         }
 
         // Event Listeners
