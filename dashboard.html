@@ -661,132 +661,112 @@
                 return;
             }
             
-            console.log("Building work grid with data:", data);
+            // Extract problem information
+            const dividend = data.dividend || '';
+            const divisor = data.divisor || '';
+            const question = data.question || '';
+            const answer = data.answer || data.userAnswer || "No answer";
+            const expectedAnswer = data.expectedAnswer || "";
             
-            // Extract dividend and divisor
-            let dividend = data.dividend || '';
-            let divisor = data.divisor || '';
+            // Convert student work to a more usable format
+            const studentInputs = {};
+            data.studentWork.forEach(input => {
+                const key = `${input.row}-${input.col}`;
+                studentInputs[key] = input.value;
+            });
             
-            if (!dividend && data.question) {
-                const parts = data.question.split('÷');
-                if (parts.length === 2) {
-                    dividend = parts[0].trim();
-                    divisor = parts[1].trim();
+            // Create a clean, simple visualization
+            let html = `
+                <div class="mb-4 p-4 bg-gray-100 rounded-lg">
+                    <h3 class="font-bold text-lg mb-2">Division Problem</h3>
+                    <div class="flex justify-between">
+                        <div>
+                            <p class="mb-1"><span class="font-medium">Question:</span> ${question || `${dividend} ÷ ${divisor}`}</p>
+                            <p class="mb-1"><span class="font-medium">Student answer:</span> <span class="font-mono bg-white px-2 py-0.5 rounded border">${answer}</span></p>
+                            ${expectedAnswer ? `<p><span class="font-medium">Expected answer:</span> <span class="font-mono bg-white px-2 py-0.5 rounded border">${expectedAnswer}</span></p>` : ''}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="p-4 bg-white border border-gray-200 rounded-lg overflow-x-auto">
+                    <div class="flex mb-3 items-center">
+                        <div class="relative w-16 font-mono text-xl text-center font-medium">
+                            ${divisor}
+                        </div>
+                        <div class="relative flex flex-col">
+                            <div class="flex border-b-2 border-black">
+            `;
+            
+            // Add dividend at the top
+            if (dividend) {
+                for (let i = 0; i < dividend.length; i++) {
+                    html += `<div class="w-10 h-10 flex items-center justify-center font-mono text-xl">${dividend[i]}</div>`;
                 }
             }
             
-            // Collect all student inputs and organize by position
-            const gridCells = {};
-            data.studentWork.forEach(input => {
-                const key = `${input.row}-${input.col}`;
-                gridCells[key] = input.value;
-            });
-            
-            // Create a styled division problem display
-            let html = `
-                <div class="p-4 bg-gray-50 border border-gray-200 rounded-lg mb-4">
-                    <div class="flex items-center justify-between mb-3">
-                        <h3 class="font-semibold text-lg">Division Problem: ${dividend} ÷ ${divisor}</h3>
-                    </div>
-                    <div class="flex items-center space-x-4 mb-2">
-                        <span class="font-medium">Student answer:</span>
-                        <span class="font-mono bg-white px-3 py-1 rounded border">${data.answer || data.userAnswer || "No answer"}</span>
-                    </div>
-                    <div class="flex items-center space-x-4">
-                        <span class="font-medium">Expected answer:</span>
-                        <span class="font-mono bg-white px-3 py-1 rounded border">${data.expectedAnswer || "Not specified"}</span>
-                    </div>
-                </div>
-                <div class="division-container p-4 bg-white border border-gray-200 rounded-lg overflow-x-auto">
-                    <div class="division-problem font-mono text-lg relative">
+            html += `
+                            </div>
+                            <div class="student-work mt-2">
             `;
             
-            // Determine the starting column (0 if not specified)
-            const startCol = data.startCol || 0;
-            
-            // Create the division problem layout
-            // First line: divisor ) dividend
-            html += '<div class="flex items-center mb-1">';
-            
-            // Add the divisor 
-            html += `<span class="mr-2">${divisor}</span>`;
-            
-            // Add the division bracket
-            html += '<div class="division-bracket relative">';
-            html += '<div class="absolute top-0 bottom-1/2 right-0 border-r-2 border-black w-3"></div>'; // vertical line
-            html += '<div class="absolute top-1/2 right-0 border-t-2 border-black w-full"></div>'; // horizontal line
-            html += `<span class="invisible">${divisor}</span>`; // spacing element
-            html += '</div>';
-            
-            // Add the dividend with appropriate spacing
-            for (let i = 0; i < dividend.length; i++) {
-                const digit = dividend.charAt(i);
-                html += `<span class="w-8 h-8 inline-flex items-center justify-center">${digit}</span>`;
-            }
-            
-            html += '</div>';
-            
-            // Find the maximum row number in the student work
+            // Find the max row and column in the student work
             let maxRow = 0;
+            let maxCol = 0;
+            
             data.studentWork.forEach(input => {
                 maxRow = Math.max(maxRow, input.row);
+                maxCol = Math.max(maxCol, input.col);
             });
             
-            // Generate rows for the division steps
-            for (let row = 0; row <= maxRow + 1; row++) {
-                html += '<div class="flex items-center h-8">';
+            // Ensure we have at least a few rows and columns
+            maxRow = Math.max(maxRow, 5);
+            maxCol = Math.max(maxCol, dividend ? dividend.length + 3 : 8);
+            
+            // Generate the grid
+            for (let row = 0; row <= maxRow; row++) {
+                html += '<div class="flex">';
                 
-                // Add spacing for the divisor and bracket
-                html += `<span class="mr-2 invisible">${divisor}</span>`;
-                html += '<div class="division-bracket w-3"></div>';
-                
-                // Add cells for this row
-                for (let col = 0; col < 20; col++) {
+                for (let col = 0; col <= maxCol; col++) {
                     const key = `${row}-${col}`;
-                    const value = gridCells[key] || '';
+                    const value = studentInputs[key] || '';
                     
-                    let cellClass = 'w-8 h-8 inline-flex items-center justify-center';
+                    // Determine if this cell is part of a subtraction line
+                    let hasSubtractionLine = false;
                     
-                    // Highlight student inputs
+                    // Check if there are values in the next row that would indicate a subtraction
+                    for (let c = 0; c <= maxCol; c++) {
+                        if (studentInputs[`${row+1}-${c}`]) {
+                            hasSubtractionLine = true;
+                            break;
+                        }
+                    }
+                    
+                    let cellClass = 'w-10 h-10 flex items-center justify-center font-mono';
+                    
+                    // Add styling for student inputs
                     if (value) {
-                        cellClass += ' bg-indigo-50 text-indigo-700 font-bold';
+                        cellClass += ' bg-indigo-50 text-indigo-800 font-medium';
                     }
                     
-                    // Add borders for subtraction steps (usually every other row after the first)
-                    if (row > 0 && row % 2 === 0) {
-                        // Check if there are any values in this row
-                        let hasValues = false;
-                        for (let c = 0; c < 20; c++) {
-                            if (gridCells[`${row}-${c}`]) {
-                                hasValues = true;
-                                break;
-                            }
-                        }
-                        
-                        if (hasValues) {
-                            cellClass += ' border-t border-gray-400';
-                        }
+                    // Add subtraction line if needed
+                    if (hasSubtractionLine && value) {
+                        cellClass += ' border-b border-gray-500';
                     }
                     
-                    html += `<span class="${cellClass}">${value}</span>`;
+                    html += `<div class="${cellClass}">${value}</div>`;
                 }
                 
                 html += '</div>';
             }
             
             html += `
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="mt-3 p-2 bg-gray-50 border border-gray-200 rounded text-xs text-gray-600">
-                    <div class="flex items-center space-x-4">
-                        <span class="flex items-center">
-                            <span class="inline-block w-3 h-3 mr-1 bg-indigo-50 border border-indigo-200"></span>
-                            Student inputs
-                        </span>
-                        <span class="flex items-center">
-                            <span class="inline-block w-8 border-t border-gray-400 mr-1"></span>
-                            Subtraction steps
-                        </span>
+                    
+                    <div class="mt-4 flex items-center text-sm text-gray-600">
+                        <span class="inline-block w-4 h-4 bg-indigo-50 mr-1 border border-indigo-200"></span>
+                        <span>Student inputs</span>
                     </div>
                 </div>
             `;
