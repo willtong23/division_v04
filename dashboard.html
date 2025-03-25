@@ -617,85 +617,15 @@
             document.querySelectorAll('.display-work-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const sessionId = this.dataset.id;
-                    showStudentWorkModal(sessionId);
+                    displayStudentWork(sessionId);
                 });
             });
         }
         
-        // Show the student work modal
+        // Show the student work modal (Keeping this function for back-compatibility)
         function showStudentWorkModal(sessionId) {
-            const modal = document.getElementById('resultsModal');
-            const modalContent = document.getElementById('modalContent');
-            const session = practiceSessions.find(s => s.id === sessionId);
-            
-            if (!session) {
-                console.error('Session not found:', sessionId);
-                return;
-            }
-            
-            const formattedDate = session.timestamp ? session.timestamp.toLocaleString() : 'Unknown date';
-            
-            // Build modal content
-            modalContent.innerHTML = `
-                <div class="space-y-6">
-                    <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                        <h3 class="font-semibold text-lg mb-3">Basic Information</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <p class="mb-2"><span class="font-medium">Student:</span> ${session.studentName}</p>
-                                <p class="mb-2"><span class="font-medium">Answer:</span> ${session.answer}</p>
-                                <p><span class="font-medium">Time:</span> ${session.timeSeconds || 0} seconds</p>
-                            </div>
-                            <div>
-                                <p class="mb-2"><span class="font-medium">Question:</span> ${session.question}</p>
-                                <p class="mb-2">
-                                    <span class="font-medium">Status:</span> 
-                                    <span class="${session.status === 'Correct' ? 'text-green-600' : 'text-red-600'}">${session.status}</span>
-                                </p>
-                                <p><span class="font-medium">Date:</span> ${formattedDate}</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    ${session.fullData.studentWork ? `
-                    <div>
-                        <h3 class="font-semibold text-lg mb-3">Student Work</h3>
-                        <div class="bg-gray-100 dark:bg-gray-900 p-4 rounded-lg overflow-auto" id="workGrid">
-                            <p class="text-sm text-gray-500 mb-2">Loading student's division grid...</p>
-                        </div>
-                        <div class="mt-4 flex justify-center">
-                            <button id="showFullScreenBtn" class="px-3 py-1.5 bg-indigo-500 text-white text-sm rounded hover:bg-indigo-600 transition-colors">
-                                Show Detailed View
-                            </button>
-                        </div>
-                    </div>
-                    ` : '<div class="text-center p-4 text-gray-500">No student work data available for this session</div>'}
-                </div>
-            `;
-            
-            // Show the modal
-            modal.classList.remove('hidden');
-            
-            // If the session has student work, build the grid visualization
-            if (session.fullData.studentWork && Array.isArray(session.fullData.studentWork)) {
-                setTimeout(() => {
-                    try {
-                        buildWorkGrid(session.fullData, document.getElementById('workGrid'));
-                        
-                        // Add event listener to the full screen button
-                        const fullScreenBtn = document.getElementById('showFullScreenBtn');
-                        if (fullScreenBtn) {
-                            fullScreenBtn.addEventListener('click', () => {
-                                displayStudentWork(sessionId);
-                                modal.classList.add('hidden'); // Hide the current modal
-                            });
-                        }
-                    } catch (error) {
-                        console.error('Error building work grid:', error);
-                        document.getElementById('workGrid').innerHTML = `<p class="text-red-500">Error displaying student work: ${error.message}</p>`;
-                    }
-                }, 100);
-            }
+            // Just call the detailed view directly
+            displayStudentWork(sessionId);
         }
         
         // Display Student Work
@@ -725,6 +655,9 @@
                 if (session.fullData) {
                     if (session.fullData.startCol !== undefined) {
                         startCol = session.fullData.startCol;
+                    } else {
+                        // Fallback calculation for startCol if not explicitly provided
+                        startCol = divisor.toString().length + 1;
                     }
                     
                     if (session.fullData.studentWork) {
@@ -743,10 +676,20 @@
                 return;
             }
             
+            // First, remove any existing student work modal
+            const existingModal = document.getElementById('studentWorkModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
             // Create modal element
             const modal = document.createElement('div');
             modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 animate-fade-in';
             modal.id = 'studentWorkModal';
+            
+            // Calculate remainder
+            const remainder = dividend % divisor;
+            const hasRemainder = remainder > 0;
 
             // Create grid to display student's work
             const gridSize = 10;
@@ -788,18 +731,17 @@
                         }
 
                         // Add "R" for remainder
-                        if (dividend % divisor > 0 && 
-                            rowIdx === 0 && colIdx === startCol + dividend.toString().length) {
+                        if (hasRemainder && rowIdx === 0 && colIdx === startCol + dividend.toString().length) {
                             cellContent = 'R';
+                            classes += ' font-bold';
                         }
 
                         // Add remainder value explicitly
-                        if (dividend % divisor > 0 && 
-                            rowIdx === 0 && colIdx === startCol + dividend.toString().length + 1) {
+                        if (hasRemainder && rowIdx === 0 && colIdx === startCol + dividend.toString().length + 1) {
                             const remainderInput = studentWork.find(input => 
                                 input.row === 0 && input.col === colIdx
                             );
-                            cellContent = remainderInput ? remainderInput.value : (dividend % divisor).toString();
+                            cellContent = remainderInput ? remainderInput.value : remainder.toString();
                             classes += ' bg-blue-100 dark:bg-blue-900/30';
                         }
 
@@ -819,7 +761,7 @@
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-5 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-semibold">Student Work: ${session.studentName}</h2>
-                        <button id="closeModalBtn" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                        <button id="closeStudentWorkModal" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                             </svg>
@@ -828,7 +770,7 @@
                     
                     <div class="mb-4">
                         <p class="font-medium mb-1">Question: ${dividend} ÷ ${divisor}</p>
-                        <p class="mb-1">Correct Answer: ${Math.floor(dividend/divisor)}${dividend % divisor > 0 ? ` R ${dividend % divisor}` : ''}</p>
+                        <p class="mb-1">Correct Answer: ${Math.floor(dividend/divisor)}${hasRemainder ? ` R ${remainder}` : ''}</p>
                         <p class="mb-3">Student's Answer: <span class="${isAnswerCorrect ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">${userAnswer}</span></p>
                         <div class="flex gap-2 mb-4">
                             <span class="px-2 py-1 text-xs font-medium rounded ${isAnswerCorrect ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'}">
@@ -859,7 +801,17 @@
             document.body.appendChild(modal);
 
             // Add styles for the grid
-            const style = document.createElement('style');
+            const styleId = 'student-work-grid-styles';
+            let style = document.getElementById(styleId);
+            
+            // Remove old style if it exists
+            if (style) {
+                style.remove();
+            }
+            
+            // Create new style element
+            style = document.createElement('style');
+            style.id = styleId;
             style.textContent = `
                 .student-work-grid .grid-cell {
                     width: 2.5rem;
@@ -905,135 +857,19 @@
             document.head.appendChild(style);
 
             // Add event listener to close button
-            document.getElementById('closeModalBtn').addEventListener('click', function() {
-                modal.remove();
-                style.remove();
-            });
+            const closeBtn = document.getElementById('closeStudentWorkModal');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function() {
+                    modal.remove();
+                });
+            }
 
             // Close modal when clicking outside the content
             modal.addEventListener('click', function(e) {
                 if (e.target === modal) {
                     modal.remove();
-                    style.remove();
                 }
             });
-        }
-        
-        // Build visualization of student's division work
-        function buildWorkGrid(data, container) {
-            if (!data.studentWork || !Array.isArray(data.studentWork)) {
-                container.innerHTML = '<p class="text-gray-500">No work details available</p>';
-                return;
-            }
-
-            console.log("Building work grid with data:", data);
-
-            // Extract problem information
-            const answer = data.answer || data.userAnswer || "No answer";
-            const expectedAnswer = data.expectedAnswer || "";
-
-            // Basic info in blue box
-            let html = `
-                <div class="p-4 bg-blue-50 rounded-lg border border-blue-200 mb-4">
-                    <div class="flex flex-wrap gap-x-6 gap-y-2">
-                        <div>
-                            <span class="font-medium">Student answer:</span>
-                            <span class="font-mono px-2 py-0.5 bg-white rounded border">${answer}</span>
-                        </div>
-                        ${expectedAnswer ? `
-                        <div>
-                            <span class="font-medium">Expected answer:</span>
-                            <span class="font-mono px-2 py-0.5 bg-white rounded border">${expectedAnswer}</span>
-                        </div>` : ''}
-                    </div>
-                </div>
-            `;
-
-            // Get grid bounds
-            let minRow = Number.MAX_SAFE_INTEGER;
-            let maxRow = 0;
-            let minCol = Number.MAX_SAFE_INTEGER;
-            let maxCol = 0;
-
-            data.studentWork.forEach(input => {
-                minRow = Math.min(minRow, input.row);
-                maxRow = Math.max(maxRow, input.row);
-                minCol = Math.min(minCol, input.col);
-                maxCol = Math.max(maxCol, input.col);
-            });
-
-            // Ensure reasonable grid limits
-            minRow = Math.min(minRow, 0);
-            minCol = Math.min(minCol, 0);
-            maxRow = Math.max(maxRow, 6);
-            maxCol = Math.max(maxCol, 8);
-
-            // Create grid container with relative positioning
-            html += `
-                <div class="relative p-6 bg-white border border-gray-200 rounded-lg" style="min-height: 280px;">
-                    <!-- Division bracket -->
-                    <div class="absolute left-7 top-10 bottom-0 border-l-2 border-black"></div>
-                    <div class="absolute left-7 top-10 w-[calc(100%-60px)] border-t-2 border-black"></div>
-            `;
-
-            // Find rows with subtraction operations (need horizontal lines)
-            let rowsWithSubtraction = new Set();
-            for (let row = minRow + 1; row <= maxRow; row++) {
-                const hasInputsInRow = data.studentWork.some(input => input.row === row);
-                if (hasInputsInRow) {
-                    rowsWithSubtraction.add(row - 1); // Add line above this row
-                }
-            }
-
-            // Create the grid with exact positioning
-            html += `
-                    <div class="grid"
-                         style="grid-template-columns: repeat(${maxCol - minCol + 3}, 40px);
-                                grid-template-rows: repeat(${maxRow - minRow + 3}, 40px);
-                                position: relative;">
-            `;
-
-            // Add all student inputs
-            data.studentWork.forEach(input => {
-                const row = input.row - minRow + 1;
-                const col = input.col - minCol + 2; // +2 to leave space for division bracket
-
-                if (!input.value) return;
-
-                html += `
-                        <div class="flex items-center justify-center h-10 w-10 bg-purple-50 text-xl font-mono rounded"
-                             style="grid-row: ${row}; grid-column: ${col};">
-                            ${input.value}
-                        </div>
-                `;
-            });
-
-            // Add horizontal lines for subtraction operations
-            rowsWithSubtraction.forEach(row => {
-                const gridRow = row - minRow + 2;
-                html += `
-                        <div class="border-t border-gray-400"
-                             style="grid-row: ${gridRow}; grid-column: 3 / span ${maxCol - minCol + 2}; margin-top: 19px;">
-                        </div>
-                `;
-            });
-
-            html += `
-                    </div> <!-- End grid -->
-                </div> <!-- End container -->
-            `;
-
-            // Add legend
-            html += `
-                <div class="mt-3 text-sm text-gray-500">
-                    <div class="flex items-center mb-1">
-                        <span class="inline-block w-4 h-4 mr-2 bg-purple-50 border border-purple-200 rounded"></span>
-                        <span>Student inputs</span>
-                    </div>
-                </div>
-            `;
-
-            container.innerHTML = html;
         }
 
         // Event Listeners
