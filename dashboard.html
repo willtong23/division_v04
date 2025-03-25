@@ -663,6 +663,11 @@
                         <div class="bg-gray-100 dark:bg-gray-900 p-4 rounded-lg overflow-auto" id="workGrid">
                             <p class="text-sm text-gray-500 mb-2">Loading student's division grid...</p>
                         </div>
+                        <div class="mt-4 flex justify-center">
+                            <button id="showFullScreenBtn" class="px-3 py-1.5 bg-indigo-500 text-white text-sm rounded hover:bg-indigo-600 transition-colors">
+                                Show Detailed View
+                            </button>
+                        </div>
                     </div>
                     ` : '<div class="text-center p-4 text-gray-500">No student work data available for this session</div>'}
                 </div>
@@ -676,12 +681,242 @@
                 setTimeout(() => {
                     try {
                         buildWorkGrid(session.fullData, document.getElementById('workGrid'));
+                        
+                        // Add event listener to the full screen button
+                        const fullScreenBtn = document.getElementById('showFullScreenBtn');
+                        if (fullScreenBtn) {
+                            fullScreenBtn.addEventListener('click', () => {
+                                displayStudentWork(sessionId);
+                                modal.classList.add('hidden'); // Hide the current modal
+                            });
+                        }
                     } catch (error) {
                         console.error('Error building work grid:', error);
                         document.getElementById('workGrid').innerHTML = `<p class="text-red-500">Error displaying student work: ${error.message}</p>`;
                     }
                 }, 100);
             }
+        }
+        
+        // Display Student Work
+        function displayStudentWork(sessionId) {
+            const session = practiceSessions.find(s => s.id === sessionId);
+            if (!session || !session.fullData) {
+                showNotification('Cannot display student work: session not found or missing data', 'error');
+                return;
+            }
+            
+            // Extract division problem data from the session
+            let dividend = 0;
+            let divisor = 0;
+            let startCol = 0;
+            let studentWork = [];
+            let isAnswerCorrect = false;
+            let userAnswer = '';
+            let timeDisplay = '';
+            
+            try {
+                if (session.question && session.question.includes('÷')) {
+                    const parts = session.question.split('÷').map(p => p.trim());
+                    dividend = parseInt(parts[0]);
+                    divisor = parseInt(parts[1]);
+                }
+                
+                if (session.fullData) {
+                    if (session.fullData.startCol !== undefined) {
+                        startCol = session.fullData.startCol;
+                    }
+                    
+                    if (session.fullData.studentWork) {
+                        studentWork = session.fullData.studentWork;
+                    }
+                    
+                    isAnswerCorrect = session.status === 'Correct';
+                    userAnswer = session.answer;
+                    timeDisplay = typeof session.timeSeconds === 'number' 
+                        ? `${session.timeSeconds} seconds` 
+                        : (session.timeSeconds || '0 seconds');
+                }
+            } catch (error) {
+                console.error('Error extracting data:', error);
+                showNotification('Error processing student work data', 'error');
+                return;
+            }
+            
+            // Create modal element
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 animate-fade-in';
+            modal.id = 'studentWorkModal';
+
+            // Create grid to display student's work
+            const gridSize = 10;
+            const gridHtml = Array(gridSize).fill().map(() => Array(gridSize).fill('')).map((row, rowIdx) => {
+                return `<div class="grid-row flex">
+                    ${row.map((_, colIdx) => {
+                        // Find student input for this cell
+                        const input = studentWork.find(input => 
+                            input.row === rowIdx && input.col === colIdx
+                        );
+
+                        let cellContent = '';
+                        let classes = 'grid-cell';
+
+                        // Add division line
+                        if (rowIdx === 1 && colIdx === divisor.toString().length - 1) {
+                            classes += ' division-line';
+                        }
+
+                        // Add horizontal line
+                        if ((rowIdx === 0 && colIdx >= startCol && colIdx < startCol + dividend.toString().length) || 
+                            (rowIdx % 2 === 0 && rowIdx > 0 && rowIdx < 10 && colIdx >= startCol && colIdx < startCol + dividend.toString().length)) {
+                            classes += ' h-line';
+                        }
+
+                        // Add subtraction symbol
+                        if (rowIdx % 2 === 0 && rowIdx > 0 && rowIdx < 10 && colIdx === startCol - 1) {
+                            cellContent = '−';
+                            classes += ' text-center font-bold';
+                        }
+
+                        // Place divisor and dividend
+                        if (rowIdx === 1) {
+                            if (colIdx < divisor.toString().length) {
+                                cellContent = divisor.toString()[colIdx];
+                            } else if (colIdx >= startCol && colIdx < startCol + dividend.toString().length) {
+                                cellContent = dividend.toString()[colIdx - startCol];
+                            }
+                        }
+
+                        // Add "R" for remainder
+                        if (dividend % divisor > 0 && 
+                            rowIdx === 0 && colIdx === startCol + dividend.toString().length) {
+                            cellContent = 'R';
+                        }
+
+                        // Add remainder value explicitly
+                        if (dividend % divisor > 0 && 
+                            rowIdx === 0 && colIdx === startCol + dividend.toString().length + 1) {
+                            const remainderInput = studentWork.find(input => 
+                                input.row === 0 && input.col === colIdx
+                            );
+                            cellContent = remainderInput ? remainderInput.value : (dividend % divisor).toString();
+                            classes += ' bg-blue-100 dark:bg-blue-900/30';
+                        }
+
+                        // Add student's work (excluding the remainder, which is handled above)
+                        if (input && !(rowIdx === 0 && colIdx === startCol + dividend.toString().length + 1)) {
+                            cellContent = input.value;
+                            classes += ' bg-blue-100 dark:bg-blue-900/30';
+                        }
+
+                        return `<div class="${classes}">${cellContent}</div>`;
+                    }).join('')}
+                </div>`;
+            }).join('');
+
+            // Create the modal content
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-5 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold">Student Work: ${session.studentName}</h2>
+                        <button id="closeModalBtn" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <p class="font-medium mb-1">Question: ${dividend} ÷ ${divisor}</p>
+                        <p class="mb-1">Correct Answer: ${Math.floor(dividend/divisor)}${dividend % divisor > 0 ? ` R ${dividend % divisor}` : ''}</p>
+                        <p class="mb-3">Student's Answer: <span class="${isAnswerCorrect ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">${userAnswer}</span></p>
+                        <div class="flex gap-2 mb-4">
+                            <span class="px-2 py-1 text-xs font-medium rounded ${isAnswerCorrect ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'}">
+                                Answer: ${isAnswerCorrect ? 'Correct' : 'Incorrect'}
+                            </span>
+                            <span class="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-xs font-medium rounded">
+                                Time: ${timeDisplay}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-4">
+                        <h3 class="font-medium mb-3">Student's Work:</h3>
+                        <div class="flex justify-center overflow-x-auto">
+                            <div class="student-work-grid text-center">
+                                ${gridHtml}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                        Note: Blue cells show the student's input.
+                    </p>
+                </div>
+            `;
+
+            // Append the modal to the body
+            document.body.appendChild(modal);
+
+            // Add styles for the grid
+            const style = document.createElement('style');
+            style.textContent = `
+                .student-work-grid .grid-cell {
+                    width: 2.5rem;
+                    height: 2.5rem;
+                    font-family: 'Space Mono', monospace;
+                    font-size: 1.25rem;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border: 1px solid #e5e7eb;
+                    position: relative;
+                }
+                
+                .dark .student-work-grid .grid-cell {
+                    border-color: #4b5563;
+                }
+                
+                .student-work-grid .h-line {
+                    border-bottom: 2px solid #374151;
+                }
+                
+                .dark .student-work-grid .h-line {
+                    border-bottom: 2px solid #d1d5db;
+                }
+                
+                .student-work-grid .division-line {
+                    border-right: 3px solid #374151;
+                }
+                
+                .dark .student-work-grid .division-line {
+                    border-right: 3px solid #d1d5db;
+                }
+                
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                
+                .animate-fade-in {
+                    animation: fadeIn 0.3s ease-out;
+                }
+            `;
+            document.head.appendChild(style);
+
+            // Add event listener to close button
+            document.getElementById('closeModalBtn').addEventListener('click', function() {
+                modal.remove();
+                style.remove();
+            });
+
+            // Close modal when clicking outside the content
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.remove();
+                    style.remove();
+                }
+            });
         }
         
         // Build visualization of student's division work
