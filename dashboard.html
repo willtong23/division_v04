@@ -660,92 +660,104 @@
                 container.innerHTML = '<p class="text-gray-500">No work details available</p>';
                 return;
             }
-            
+
             console.log("Building work grid with data:", data);
-            
+
             // Extract problem information
             const answer = data.answer || data.userAnswer || "No answer";
             const expectedAnswer = data.expectedAnswer || "";
-            
+
             // Basic info in blue box
             let html = `
                 <div class="p-4 bg-blue-50 rounded-lg border border-blue-200 mb-4">
                     <div class="flex flex-wrap gap-x-6 gap-y-2">
-                        <div><span class="font-medium">Student answer:</span> <span class="font-mono px-2 py-0.5 bg-white rounded border">${answer}</span></div>
-                        ${expectedAnswer ? `<div><span class="font-medium">Expected answer:</span> <span class="font-mono px-2 py-0.5 bg-white rounded border">${expectedAnswer}</span></div>` : ''}
+                        <div>
+                            <span class="font-medium">Student answer:</span>
+                            <span class="font-mono px-2 py-0.5 bg-white rounded border">${answer}</span>
+                        </div>
+                        ${expectedAnswer ? `
+                        <div>
+                            <span class="font-medium">Expected answer:</span>
+                            <span class="font-mono px-2 py-0.5 bg-white rounded border">${expectedAnswer}</span>
+                        </div>` : ''}
                     </div>
                 </div>
             `;
-            
+
             // Get grid bounds
             let minRow = Number.MAX_SAFE_INTEGER;
             let maxRow = 0;
             let minCol = Number.MAX_SAFE_INTEGER;
             let maxCol = 0;
-            
+
             data.studentWork.forEach(input => {
                 minRow = Math.min(minRow, input.row);
                 maxRow = Math.max(maxRow, input.row);
                 minCol = Math.min(minCol, input.col);
                 maxCol = Math.max(maxCol, input.col);
             });
-            
-            // Ensure we have reasonable grid limits
+
+            // Ensure reasonable grid limits
             minRow = Math.min(minRow, 0);
             minCol = Math.min(minCol, 0);
             maxRow = Math.max(maxRow, 6);
             maxCol = Math.max(maxCol, 8);
-            
+
             // Create grid container with relative positioning
-            html += '<div class="relative p-6 bg-white border border-gray-200 rounded-lg" style="min-height: 280px;">';
-            
-            // Add division bracket
             html += `
-                <div class="absolute left-7 top-10 bottom-0 border-l-2 border-black"></div>
-                <div class="absolute left-7 top-10 w-[calc(100%-60px)] border-t-2 border-black"></div>
+                <div class="relative p-6 bg-white border border-gray-200 rounded-lg" style="min-height: 280px;">
+                    <!-- Division bracket -->
+                    <div class="absolute left-7 top-10 bottom-0 border-l-2 border-black"></div>
+                    <div class="absolute left-7 top-10 w-[calc(100%-60px)] border-t-2 border-black"></div>
             `;
-            
+
             // Find rows with subtraction operations (need horizontal lines)
             let rowsWithSubtraction = new Set();
             for (let row = minRow + 1; row <= maxRow; row++) {
-                // Check if this row has student inputs
                 const hasInputsInRow = data.studentWork.some(input => input.row === row);
                 if (hasInputsInRow) {
                     rowsWithSubtraction.add(row - 1); // Add line above this row
                 }
             }
-            
+
             // Create the grid with exact positioning
-            html += `<div class="grid" style="grid-template-columns: repeat(${maxCol - minCol + 3}, 40px); grid-template-rows: repeat(${maxRow - minRow + 3}, 40px); position: relative;">`;
-            
+            html += `
+                    <div class="grid"
+                         style="grid-template-columns: repeat(${maxCol - minCol + 3}, 40px);
+                                grid-template-rows: repeat(${maxRow - minRow + 3}, 40px);
+                                position: relative;">
+            `;
+
             // Add all student inputs
             data.studentWork.forEach(input => {
                 const row = input.row - minRow + 1;
                 const col = input.col - minCol + 2; // +2 to leave space for division bracket
-                
-                // Skip empty inputs
+
                 if (!input.value) return;
-                
+
                 html += `
-                    <div class="flex items-center justify-center h-10 w-10 bg-purple-50 text-xl font-mono rounded"
-                         style="grid-row: ${row}; grid-column: ${col};">
-                        ${input.value}
-                    </div>
+                        <div class="flex items-center justify-center h-10 w-10 bg-purple-50 text-xl font-mono rounded"
+                             style="grid-row: ${row}; grid-column: ${col};">
+                            ${input.value}
+                        </div>
                 `;
             });
-            
+
             // Add horizontal lines for subtraction operations
             rowsWithSubtraction.forEach(row => {
                 const gridRow = row - minRow + 2;
                 html += `
-                    <div class="border-t border-gray-400" 
-                         style="grid-row: ${gridRow}; grid-column: 3 / span ${maxCol - minCol + 2}; margin-top: 19px;"></div>
+                        <div class="border-t border-gray-400"
+                             style="grid-row: ${gridRow}; grid-column: 3 / span ${maxCol - minCol + 2}; margin-top: 19px;">
+                        </div>
                 `;
             });
-            
-            html += '</div>'; // End grid
-            html += '</div>'; // End container
-            
+
+            html += `
+                    </div> <!-- End grid -->
+                </div> <!-- End container -->
+            `;
+
             // Add legend
             html += `
                 <div class="mt-3 text-sm text-gray-500">
@@ -755,7 +767,7 @@
                     </div>
                 </div>
             `;
-            
+
             container.innerHTML = html;
         }
 
