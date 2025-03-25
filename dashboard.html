@@ -668,90 +668,77 @@
             const answer = data.answer || data.userAnswer || "No answer";
             const expectedAnswer = data.expectedAnswer || "";
             
-            // Convert student work to a more usable format
-            const studentInputs = {};
-            data.studentWork.forEach(input => {
-                const key = `${input.row}-${input.col}`;
-                studentInputs[key] = input.value;
-            });
-            
-            // Create a clean, simple visualization
+            // Basic info section
             let html = `
-                <div class="mb-4 p-4 bg-gray-100 rounded-lg">
-                    <h3 class="font-bold text-lg mb-2">Division Problem</h3>
-                    <div class="flex justify-between">
-                        <div>
-                            <p class="mb-1"><span class="font-medium">Question:</span> ${question || `${dividend} ÷ ${divisor}`}</p>
-                            <p class="mb-1"><span class="font-medium">Student answer:</span> <span class="font-mono bg-white px-2 py-0.5 rounded border">${answer}</span></p>
-                            ${expectedAnswer ? `<p><span class="font-medium">Expected answer:</span> <span class="font-mono bg-white px-2 py-0.5 rounded border">${expectedAnswer}</span></p>` : ''}
-                        </div>
+                <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                    <h3 class="font-bold text-lg mb-2">Student Work</h3>
+                    <div class="mb-2"><span class="font-medium">Question:</span> ${question || `${dividend} ÷ ${divisor}`}</div>
+                    <div class="flex flex-wrap gap-4">
+                        <div><span class="font-medium">Student answer:</span> <span class="font-mono bg-white px-2 py-0.5 rounded border">${answer}</span></div>
+                        ${expectedAnswer ? `<div><span class="font-medium">Expected answer:</span> <span class="font-mono bg-white px-2 py-0.5 rounded border">${expectedAnswer}</span></div>` : ''}
                     </div>
                 </div>
                 
-                <div class="p-4 bg-white border border-gray-200 rounded-lg overflow-x-auto">
-                    <div class="flex mb-3 items-center">
-                        <div class="relative w-16 font-mono text-xl text-center font-medium">
-                            ${divisor}
-                        </div>
-                        <div class="relative flex flex-col">
-                            <div class="flex border-b-2 border-black">
+                <div class="bg-white p-5 rounded-lg border border-gray-200 overflow-auto">
+                    <div class="division-problem relative font-mono">
             `;
             
-            // Add dividend at the top
+            // Set up the division symbol and original numbers
+            // This is similar to how the practice app displays division problems
+            html += `
+                <div class="flex relative mb-4">
+                    <!-- Divisor -->
+                    <div class="absolute left-0 top-0 text-xl">${divisor}</div>
+                    
+                    <!-- Division symbol -->
+                    <div class="ml-8 relative">
+                        <!-- Horizontal line -->
+                        <div class="border-b-2 border-black pb-1">
+                            <!-- Dividend -->
+                            <div class="flex">
+            `;
+            
+            // Add dividend digits spaced out
             if (dividend) {
                 for (let i = 0; i < dividend.length; i++) {
-                    html += `<div class="w-10 h-10 flex items-center justify-center font-mono text-xl">${dividend[i]}</div>`;
+                    html += `<div class="w-10 text-center text-xl">${dividend[i]}</div>`;
                 }
             }
             
             html += `
                             </div>
-                            <div class="student-work mt-2">
+                        </div>
+                        
+                        <!-- Vertical line of division symbol -->
+                        <div class="absolute left-0 top-0 bottom-0 border-l-2 border-black"></div>
+                    </div>
+                </div>
             `;
             
-            // Find the max row and column in the student work
-            let maxRow = 0;
-            let maxCol = 0;
-            
+            // Organize student work by position
+            const studentWork = {};
             data.studentWork.forEach(input => {
-                maxRow = Math.max(maxRow, input.row);
-                maxCol = Math.max(maxCol, input.col);
+                if (!studentWork[input.row]) {
+                    studentWork[input.row] = {};
+                }
+                studentWork[input.row][input.col] = input.value;
             });
             
-            // Ensure we have at least a few rows and columns
-            maxRow = Math.max(maxRow, 5);
-            maxCol = Math.max(maxCol, dividend ? dividend.length + 3 : 8);
+            // Find the maximum row and column
+            const maxRow = Math.max(...data.studentWork.map(input => input.row), 5);
+            const maxCol = Math.max(...data.studentWork.map(input => input.col), 10);
             
-            // Generate the grid
+            // Add the student work rows with proper indentation to match division layout
+            html += '<div class="ml-8">';  // Indent to match the division symbol
+            
             for (let row = 0; row <= maxRow; row++) {
                 html += '<div class="flex">';
                 
                 for (let col = 0; col <= maxCol; col++) {
-                    const key = `${row}-${col}`;
-                    const value = studentInputs[key] || '';
-                    
-                    // Determine if this cell is part of a subtraction line
-                    let hasSubtractionLine = false;
-                    
-                    // Check if there are values in the next row that would indicate a subtraction
-                    for (let c = 0; c <= maxCol; c++) {
-                        if (studentInputs[`${row+1}-${c}`]) {
-                            hasSubtractionLine = true;
-                            break;
-                        }
-                    }
-                    
-                    let cellClass = 'w-10 h-10 flex items-center justify-center font-mono';
-                    
-                    // Add styling for student inputs
-                    if (value) {
-                        cellClass += ' bg-indigo-50 text-indigo-800 font-medium';
-                    }
-                    
-                    // Add subtraction line if needed
-                    if (hasSubtractionLine && value) {
-                        cellClass += ' border-b border-gray-500';
-                    }
+                    const value = studentWork[row] && studentWork[row][col] ? studentWork[row][col] : '';
+                    const cellClass = value 
+                        ? 'w-10 h-10 flex items-center justify-center text-xl font-mono bg-indigo-50 text-indigo-800 font-bold' 
+                        : 'w-10 h-10 flex items-center justify-center text-xl font-mono';
                     
                     html += `<div class="${cellClass}">${value}</div>`;
                 }
@@ -760,14 +747,12 @@
             }
             
             html += `
-                            </div>
-                        </div>
                     </div>
-                    
-                    <div class="mt-4 flex items-center text-sm text-gray-600">
-                        <span class="inline-block w-4 h-4 bg-indigo-50 mr-1 border border-indigo-200"></span>
-                        <span>Student inputs</span>
-                    </div>
+                </div>
+                
+                <div class="mt-3 text-sm text-gray-500 flex items-center">
+                    <span class="inline-block w-4 h-4 mr-2 bg-indigo-50 border border-indigo-200"></span>
+                    <span>Student inputs</span>
                 </div>
             `;
             
