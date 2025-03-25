@@ -657,7 +657,7 @@
                         startCol = session.fullData.startCol;
                     } else {
                         // Fallback calculation for startCol if not explicitly provided
-                        startCol = divisor.toString().length + 1;
+                        startCol = divisor.toString().length + 2; // Increase by 1 to shift everything right
                     }
                     
                     if (session.fullData.studentWork) {
@@ -705,7 +705,7 @@
                         let classes = 'grid-cell';
 
                         // Add division line
-                        if (rowIdx === 1 && colIdx === divisor.toString().length - 1) {
+                        if (rowIdx === 1 && colIdx === divisor.toString().length) { // Shift division line right by 1
                             classes += ' division-line';
                         }
 
@@ -723,8 +723,8 @@
 
                         // Place divisor and dividend
                         if (rowIdx === 1) {
-                            if (colIdx < divisor.toString().length) {
-                                cellContent = divisor.toString()[colIdx];
+                            if (colIdx > 0 && colIdx <= divisor.toString().length) { // Shift divisor right by 1
+                                cellContent = divisor.toString()[colIdx - 1];
                             } else if (colIdx >= startCol && colIdx < startCol + dividend.toString().length) {
                                 cellContent = dividend.toString()[colIdx - startCol];
                             }
