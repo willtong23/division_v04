@@ -208,14 +208,28 @@
             measurementId: "G-GZHW33ZYTZ"
         };
 
-        // Initialize Firebase
-        const app = firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-        
-        console.log("Firebase initialized with config:", firebaseConfig);
-        console.log("Auth:", auth ? "Available" : "Not available");
-        console.log("Firestore:", db ? "Available" : "Not available");
+        // Initialize Firebase with error handling
+        let app, auth, db;
+        try {
+            app = firebase.initializeApp(firebaseConfig);
+            auth = firebase.auth();
+            db = firebase.firestore();
+            
+            console.log("Firebase initialized with config:", firebaseConfig);
+            console.log("Auth:", auth ? "Available" : "Not available");
+            console.log("Firestore:", db ? "Available" : "Not available");
+        } catch (error) {
+            console.error("Firebase initialization error:", error);
+            // Show error message on page for better debugging
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'p-4 bg-red-100 text-red-700 rounded-lg fixed top-4 right-4 max-w-md shadow-lg z-50';
+            errorDiv.innerHTML = `
+                <h3 class="font-bold mb-2">Firebase Error</h3>
+                <p>${error.message}</p>
+                <p class="text-sm mt-2">Check console for more details</p>
+            `;
+            document.body.appendChild(errorDiv);
+        }
         
         // Global Variables
         let currentUser = null;
@@ -261,42 +275,58 @@
 
         // Test Firebase connection
         function testConnection() {
-            connectionStatus.innerHTML = '<p class="text-yellow-600">Testing connection...</p>';
+            connectionStatus.innerHTML = '<p class="animate-pulse">Testing connection...</p>';
             
-            db.collection('test_connection')
-                .add({
+            if (!db) {
+                connectionStatus.innerHTML = `
+                    <div class="p-3 bg-red-50 text-red-800 rounded-lg">
+                        <p class="font-medium">Connection Failed</p>
+                        <p>Firebase database is not available. Please check your network connection and reload the page.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            db.collection('test').doc('connection')
+                .set({
                     timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                    message: 'Connection test'
+                    status: 'ok',
+                    client: 'dashboard',
+                    userAgent: navigator.userAgent
                 })
-                .then((docRef) => {
+                .then(() => {
                     connectionStatus.innerHTML = `
-                        <p class="text-green-600 font-medium">✓ Connection successful!</p>
-                        <p class="text-sm mt-1">Document created with ID: ${docRef.id}</p>
-                        <p class="text-sm mt-1">Time: ${new Date().toLocaleString()}</p>
+                        <div class="p-3 bg-green-50 text-green-800 rounded-lg">
+                            <p class="font-medium">Connection Success!</p>
+                            <p>Firebase connection established and write operation confirmed.</p>
+                        </div>
                     `;
-                    showNotification('Connection test successful!', 'success');
                 })
-                .catch((error) => {
+                .catch(error => {
                     connectionStatus.innerHTML = `
-                        <p class="text-red-600 font-medium">✗ Connection failed</p>
-                        <p class="text-sm mt-1">Error: ${error.message}</p>
+                        <div class="p-3 bg-red-50 text-red-800 rounded-lg">
+                            <p class="font-medium">Connection Error</p>
+                            <p>${error.message}</p>
+                        </div>
                     `;
-                    showNotification('Connection failed: ' + error.message, 'error');
                 });
         }
 
         // Sign in anonymously
         function signInAnonymously() {
+            if (!auth) {
+                showNotification('Firebase authentication is not available', 'error');
+                return;
+            }
+            
+            signInBtn.disabled = true;
+            signInBtn.textContent = 'Signing in...';
+            
             auth.signInAnonymously()
-                .then(() => {
-                    showNotification('Signed in anonymously', 'success');
-                })
-                .catch((error) => {
-                    showNotification('Error signing in: ' + error.message, 'error');
-                    
-                    if (error.code === 'auth/operation-not-allowed') {
-                        showNotification('Anonymous authentication is not enabled in your Firebase project', 'error');
-                    }
+                .catch(error => {
+                    showNotification(`Error signing in: ${error.message}`, 'error');
+                    signInBtn.disabled = false;
+                    signInBtn.textContent = 'Sign In Anonymously';
                 });
         }
 
@@ -774,20 +804,32 @@
         // Event Listeners
         document.addEventListener('DOMContentLoaded', function() {
             // Auth state changes
-            auth.onAuthStateChanged(function(user) {
-                currentUser = user;
+            if (auth) {
+                auth.onAuthStateChanged(function(user) {
+                    currentUser = user;
+                    updateAuthUI();
+                    
+                    if (user) {
+                        showNotification('Signed in successfully');
+                        loadCollections();
+                        loadAssignments(); // Load assignments
+                        loadPracticeSessions(); // Load practice sessions
+                    } else {
+                        showNotification('You are not signed in');
+                        collectionsList.innerHTML = '<li class="p-3 bg-yellow-50 text-yellow-800 rounded-lg">Please sign in to view collections</li>';
+                    }
+                });
+            } else {
+                // Handle the case where Firebase auth failed to initialize
+                showNotification('Firebase authentication unavailable. Some features will not work.', 'error');
+                connectionStatus.innerHTML = `
+                    <div class="p-3 bg-red-50 text-red-800 rounded-lg">
+                        <p class="font-medium mb-1">Firebase Connection Error</p>
+                        <p>Firebase authentication could not be initialized. Please check your internet connection or try again later.</p>
+                    </div>
+                `;
                 updateAuthUI();
-                
-                if (user) {
-                    showNotification('Signed in successfully');
-                    loadCollections();
-                    loadAssignments(); // Load assignments
-                    loadPracticeSessions(); // Load practice sessions
-                } else {
-                    showNotification('You are not signed in');
-                    collectionsList.innerHTML = '<li class="p-3 bg-yellow-50 text-yellow-800 rounded-lg">Please sign in to view collections</li>';
-                }
-            });
+            }
             
             // Test connection button
             testConnectionBtn.addEventListener('click', testConnection);
