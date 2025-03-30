@@ -208,29 +208,30 @@
             measurementId: "G-GZHW33ZYTZ"
         };
 
-        // Initialize Firebase with error handling
-        let app, auth, db;
-        try {
-            app = firebase.initializeApp(firebaseConfig);
-            auth = firebase.auth();
-            db = firebase.firestore();
-            
-            console.log("Firebase initialized with config:", firebaseConfig);
-            console.log("Auth:", auth ? "Available" : "Not available");
-            console.log("Firestore:", db ? "Available" : "Not available");
-        } catch (error) {
-            console.error("Firebase initialization error:", error);
-            // Show error message on page for better debugging
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'p-4 bg-red-100 text-red-700 rounded-lg fixed top-4 right-4 max-w-md shadow-lg z-50';
-            errorDiv.innerHTML = `
-                <h3 class="font-bold mb-2">Firebase Error</h3>
-                <p>${error.message}</p>
-                <p class="text-sm mt-2">Check console for more details</p>
-            `;
-            document.body.appendChild(errorDiv);
+        // Initialize Firebase
+        function initializeFirebase() {
+            try {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                auth = firebase.auth();
+
+                // Sign in anonymously
+                return auth.signInAnonymously()
+                    .then(() => {
+                        console.log("Anonymous auth successful");
+                        showNotification("Connected to database", "success");
+                        return loadPracticeSessions();
+                    })
+                    .catch(error => {
+                        console.error("Auth error:", error);
+                        showNotification("Error connecting to database", "error");
+                    });
+            } catch (error) {
+                console.error("Firebase initialization error:", error);
+                showNotification("Error initializing database", "error");
+            }
         }
-        
+
         // Global Variables
         let currentUser = null;
         let practiceSessions = [];
@@ -273,110 +274,27 @@
             }, 3000);
         }
 
-        // Test Firebase connection
-        function testConnection() {
-            connectionStatus.innerHTML = '<p class="animate-pulse">Testing connection...</p>';
-            
-            if (!db) {
-                connectionStatus.innerHTML = `
-                    <div class="p-3 bg-red-50 text-red-800 rounded-lg">
-                        <p class="font-medium">Connection Failed</p>
-                        <p>Firebase database is not available. Please check your network connection and reload the page.</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            db.collection('test').doc('connection')
-                .set({
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                    status: 'ok',
-                    client: 'dashboard',
-                    userAgent: navigator.userAgent
-                })
-                .then(() => {
-                    connectionStatus.innerHTML = `
-                        <div class="p-3 bg-green-50 text-green-800 rounded-lg">
-                            <p class="font-medium">Connection Success!</p>
-                            <p>Firebase connection established and write operation confirmed.</p>
-                        </div>
-                    `;
-                })
-                .catch(error => {
-                    connectionStatus.innerHTML = `
-                        <div class="p-3 bg-red-50 text-red-800 rounded-lg">
-                            <p class="font-medium">Connection Error</p>
-                            <p>${error.message}</p>
-                        </div>
-                    `;
-                });
-        }
-
-        // Sign in anonymously
-        function signInAnonymously() {
-            if (!auth) {
-                showNotification('Firebase authentication is not available', 'error');
-                return;
-            }
-            
-            signInBtn.disabled = true;
-            signInBtn.textContent = 'Signing in...';
-            
-            auth.signInAnonymously()
-                .catch(error => {
-                    showNotification(`Error signing in: ${error.message}`, 'error');
-                    signInBtn.disabled = false;
-                    signInBtn.textContent = 'Sign In Anonymously';
-                });
-        }
-
-        // Sign out
-        function signOut() {
-            auth.signOut()
-                .then(() => {
-                    showNotification('Signed out successfully', 'success');
-                })
-                .catch((error) => {
-                    showNotification('Error signing out: ' + error.message, 'error');
-                });
-        }
-
-        // Update auth UI
-        function updateAuthUI() {
-            if (currentUser) {
-                userInfo.classList.remove('hidden');
-                signInBtn.classList.add('hidden');
-                signOutBtn.classList.remove('hidden');
-                userName.textContent = currentUser.isAnonymous ? 'Anonymous User' : (currentUser.displayName || currentUser.email);
-            } else {
-                userInfo.classList.add('hidden');
-                signInBtn.classList.remove('hidden');
-                signOutBtn.classList.add('hidden');
-            }
-        }
-
         // Load Firebase collections
         function loadCollections() {
             collectionsList.innerHTML = '<li class="p-3 bg-gray-100 rounded-lg animate-pulse">Loading collections...</li>';
             
-            // Get all collections (this is a simplified approach)
-            const collections = ['app_logs', 'test_connection', 'test_writes', 'test_sessions', 'user_data', 'practiceSessions'];
+            // Get all collections
+            const collections = ['public_practice_data', 'practiceSessions', 'test_sessions'];
             
-            Promise.all(collections.map(collectionName => {
-                return db.collection(collectionName)
-                    .limit(1)
+            Promise.all(collections.map(collectionName => 
+                db.collection(collectionName)
                     .get()
                     .then(snapshot => ({
                         name: collectionName,
                         exists: !snapshot.empty,
-                        count: '?', // Firestore doesn't have a simple way to count documents
+                        count: snapshot.size
                     }))
                     .catch(() => ({
                         name: collectionName,
                         exists: false,
-                        count: '0'
-                    }));
-            }))
+                        count: 0
+                    }))
+            ))
             .then(collectionsInfo => {
                 collectionsList.innerHTML = '';
                 
@@ -387,136 +305,85 @@
                     item.innerHTML = `
                         <span>${collection.name}</span>
                         <span class="px-2 py-1 text-xs ${collection.exists ? 'bg-green-100' : 'bg-gray-200'} rounded-full">
-                            ${collection.exists ? 'Available' : 'Empty/Unavailable'}
+                            ${collection.exists ? `${collection.count} documents` : 'Empty/Unavailable'}
                         </span>
                     `;
                     
-                    item.addEventListener('click', () => {
-                        loadCollectionData(collection.name);
-                    });
-                    
                     collectionsList.appendChild(item);
                 });
-                
-                // Add a special option for public data
-                const publicItem = document.createElement('li');
-                publicItem.className = 'p-3 bg-blue-50 text-blue-800 rounded-lg flex justify-between items-center';
-                publicItem.innerHTML = `
-                    <span>All Public Data</span>
-                    <span class="px-2 py-1 text-xs bg-blue-100 rounded-full">View</span>
-                `;
-                publicItem.addEventListener('click', () => {
-                    loadAllPublicData();
-                });
-                collectionsList.appendChild(publicItem);
             })
             .catch(error => {
-                collectionsList.innerHTML = `<li class="p-3 bg-red-50 text-red-500 rounded-lg">Error loading collections: ${error.message}</li>`;
+                collectionsList.innerHTML = `
+                    <li class="p-3 bg-red-50 text-red-500 rounded-lg">
+                        Error loading collections: ${error.message}
+                    </li>
+                `;
             });
         }
 
-        // Load specific collection data
-        function loadCollectionData(collectionName) {
-            showNotification(`Loading data from ${collectionName}...`);
-            
-            db.collection(collectionName)
-                .limit(50) // Limit to 50 documents for safety
+        // Load practice sessions
+        function loadPracticeSessions() {
+            if (!db) {
+                showNotification("Database not connected", "error");
+                return Promise.reject("Database not initialized");
+            }
+
+            return db.collection('public_practice_data')
+                .orderBy('timestamp', 'desc')
                 .get()
                 .then(snapshot => {
-                    if (snapshot.empty) {
-                        showNotification(`No data found in ${collectionName}`, 'error');
-                        return;
-                    }
-                    
-                    // Process data into practice sessions format
-                    processDataFromCollection(snapshot.docs, collectionName);
+                    practiceSessions = [];
+                    studentNames = new Set();
+
+                    snapshot.forEach(doc => {
+                        try {
+                            const data = doc.data();
+                            
+                            // Skip invalid data
+                            if (!data.dividend || !data.divisor) {
+                                console.log("Skipping invalid document:", doc.id);
+                                return;
+                            }
+
+                            const session = {
+                                id: doc.id,
+                                studentName: data.studentName || "Unknown",
+                                question: `${data.dividend} ÷ ${data.divisor}`,
+                                userAnswer: data.userAnswer || "No answer",
+                                expectedAnswer: data.expectedAnswer || "",
+                                status: data.isCorrect ? "Correct" : "Incorrect",
+                                timeSeconds: data.timeTaken || 0,
+                                timeDisplay: data.timeDisplay || `${data.timeTaken || 0}s`,
+                                timestamp: data.timestamp ? new Date(data.timestamp.seconds * 1000) : new Date(),
+                                studentWork: data.studentWork || [],
+                                sessionId: data.sessionId || Date.now()
+                            };
+
+                            practiceSessions.push(session);
+                            if (session.studentName) {
+                                studentNames.add(session.studentName);
+                            }
+                        } catch (error) {
+                            console.error("Error processing document:", error);
+                        }
+                    });
+
+                    // Update UI
+                    updateStudentFilter();
+                    updateSessionsTable();
+
+                    const message = practiceSessions.length > 0 ? 
+                        `Loaded ${practiceSessions.length} practice sessions` : 
+                        'No practice sessions found';
+                    showNotification(message, practiceSessions.length > 0 ? 'success' : 'info');
+
+                    return practiceSessions;
                 })
                 .catch(error => {
-                    showNotification(`Error loading ${collectionName}: ${error.message}`, 'error');
+                    console.error("Error loading practice sessions:", error);
+                    showNotification("Error loading practice sessions", "error");
+                    return Promise.reject(error);
                 });
-        }
-
-        // Load all public data 
-        function loadAllPublicData() {
-            showNotification('Loading all public practice data...');
-            
-            // Try different collections where public data might be stored
-            Promise.all([
-                db.collection('test_sessions').limit(50).get(),
-                db.collection('public_sessions').limit(50).get()
-            ])
-            .then(([testSnapshot, publicSnapshot]) => {
-                const allDocs = [
-                    ...testSnapshot.docs,
-                    ...publicSnapshot.docs
-                ];
-                
-                if (allDocs.length === 0) {
-                    showNotification('No public practice data found', 'error');
-                    return;
-                }
-                
-                processDataFromCollection(allDocs, 'Public Data');
-            })
-            .catch(error => {
-                showNotification(`Error loading public data: ${error.message}`, 'error');
-            });
-        }
-
-        // Process data from collections into practice sessions format
-        function processDataFromCollection(docs, source) {
-            const processedSessions = [];
-            
-            docs.forEach(doc => {
-                const data = doc.data();
-                
-                // Skip non-practice data
-                if (!data.studentName && !data.questionsData) {
-                    return;
-                }
-                
-                // Try to extract practice data
-                try {
-                    if (data.questionsData && Array.isArray(data.questionsData)) {
-                        // Handle full session data
-                        data.questionsData.forEach((question, index) => {
-                            processedSessions.push({
-                                id: doc.id + '_' + index,
-                                studentName: data.studentName || 'Unknown',
-                                question: `${question.dividend} ÷ ${question.divisor}`,
-                                answer: question.quotient || 'Unknown',
-                                status: question.isCorrect ? 'Correct' : 'Incorrect',
-                                timeSeconds: question.timeSeconds || 0,
-                                timestamp: data.timestamp ? new Date(data.timestamp.toDate()) : new Date(),
-                                fullData: question
-                            });
-                        });
-                    } else if (data.dividend && data.divisor) {
-                        // Handle single question data
-                        processedSessions.push({
-                            id: doc.id,
-                            studentName: data.studentName || 'Unknown',
-                            question: `${data.dividend} ÷ ${data.divisor}`,
-                            answer: data.quotient || 'Unknown',
-                            status: data.isCorrect ? 'Correct' : 'Incorrect',
-                            timeSeconds: data.timeSeconds || 0,
-                            timestamp: data.timestamp ? new Date(data.timestamp.toDate()) : new Date(),
-                            fullData: data
-                        });
-                    }
-                } catch (error) {
-                    console.error('Error processing document:', error, data);
-                }
-            });
-            
-            if (processedSessions.length > 0) {
-                practiceSessions = processedSessions;
-                updateSessionsTable();
-                updateStudentFilter();
-                showNotification(`Loaded ${processedSessions.length} practice sessions from ${source}`, 'success');
-            } else {
-                showNotification(`No practice data found in ${source}`, 'error');
-            }
         }
 
         // Update student filter dropdown
@@ -595,7 +462,7 @@
                 row.innerHTML = `
                     <td class="p-3 border-b border-r border-gray-200">${session.studentName}</td>
                     <td class="p-3 border-b border-r border-gray-200">${session.question}</td>
-                    <td class="p-3 border-b border-r border-gray-200">${session.answer}</td>
+                    <td class="p-3 border-b border-r border-gray-200">${session.userAnswer}</td>
                     <td class="p-3 border-b border-r border-gray-200">
                         <span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">
                             ${session.status}
@@ -631,7 +498,7 @@
         // Display Student Work
         function displayStudentWork(sessionId) {
             const session = practiceSessions.find(s => s.id === sessionId);
-            if (!session || !session.fullData) {
+            if (!session || !session.studentWork) {
                 showNotification('Cannot display student work: session not found or missing data', 'error');
                 return;
             }
@@ -641,87 +508,10 @@
             modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 animate-fade-in';
             modal.id = 'studentWorkModal';
 
-            // Parse the question to get dividend and divisor
-            const [dividend, divisor] = session.question.split('÷').map(num => parseInt(num.trim()));
-            const startCol = divisor.toString().length; // Position where dividend starts
-            const studentWork = session.fullData.studentWork || [];
-
             // Create the grid HTML
-            const gridHtml = Array(10).fill().map((_, rowIdx) => {
+            const gridHtml = session.studentWork.map((input, index) => {
                 return `<div class="grid-row flex">
-                    ${Array(10).fill().map((_, colIdx) => {
-                        // Find student input for this cell
-                        const input = studentWork.find(input => 
-                            input.row === rowIdx && input.col === colIdx
-                        );
-                        
-                        let cellContent = '';
-                        let classes = 'grid-cell';
-                        
-                        // Add division line after divisor
-                        if (rowIdx === 1 && colIdx === divisor.toString().length - 1) {
-                            classes += ' division-line';
-                        }
-                        
-                        // Add horizontal lines
-                        if ((rowIdx === 0 && colIdx >= startCol) || 
-                            (rowIdx % 2 === 0 && rowIdx > 0 && colIdx >= startCol)) {
-                            classes += ' h-line';
-                        }
-                        
-                        // Place divisor and dividend
-                        if (rowIdx === 1) {
-                            if (colIdx < divisor.toString().length) {
-                                cellContent = divisor.toString()[colIdx];
-                            } else if (colIdx >= startCol && colIdx < startCol + dividend.toString().length) {
-                                cellContent = dividend.toString()[colIdx - startCol];
-                            }
-                        }
-                        
-                        // Add student's work
-                        if (input) {
-                            cellContent = input.value;
-                            classes += ' bg-blue-100';
-                        }
-                        
-                        // Add "R" for remainder if needed
-                        if (dividend % divisor > 0 && 
-                            rowIdx === 0 && colIdx === startCol + dividend.toString().length) {
-                            cellContent = 'R';
-                        }
-                        
-                        // Add remainder value if present
-                        if (dividend % divisor > 0 && 
-                            rowIdx === 0 && colIdx === startCol + dividend.toString().length + 1) {
-                            cellContent = (dividend % divisor).toString();
-                            classes += ' bg-blue-100';
-                        }
-                        
-                        // Add quotient digits and intermediate work
-                        const quotient = Math.floor(dividend / divisor).toString();
-                        if (rowIdx === 0 && colIdx >= startCol && colIdx < startCol + quotient.length) {
-                            const quotientInput = studentWork.find(input => 
-                                input.row === 0 && input.col === colIdx
-                            );
-                            if (quotientInput) {
-                                cellContent = quotientInput.value;
-                                classes += ' bg-blue-100';
-                            }
-                        }
-                        
-                        // Add intermediate calculations (products and differences)
-                        if (rowIdx > 1) {
-                            const workInput = studentWork.find(input => 
-                                input.row === rowIdx && input.col === colIdx
-                            );
-                            if (workInput) {
-                                cellContent = workInput.value;
-                                classes += ' bg-blue-100';
-                            }
-                        }
-                        
-                        return `<div class="${classes}">${cellContent}</div>`;
-                    }).join('')}
+                    <div class="grid-cell">${input.value}</div>
                 </div>`;
             }).join('');
 
@@ -739,14 +529,14 @@
 
                     <div class="mb-4">
                         <p class="font-medium mb-1">Question: ${session.question}</p>
-                        <p class="mb-1">Correct Answer: ${Math.floor(dividend/divisor)}${dividend % divisor > 0 ? ` R ${dividend % divisor}` : ''}</p>
-                        <p class="mb-3">Student's Answer: <span class="${session.status === 'Correct' ? 'text-green-600' : 'text-red-600'}">${session.answer}</span></p>
+                        <p class="mb-1">Correct Answer: ${session.expectedAnswer}</p>
+                        <p class="mb-3">Student's Answer: <span class="${session.status === 'Correct' ? 'text-green-600' : 'text-red-600'}">${session.userAnswer}</span></p>
                         <div class="flex gap-2 mb-4">
                             <span class="px-2 py-1 text-xs font-medium rounded ${session.status === 'Correct' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
                                 Answer: ${session.status}
                             </span>
                             <span class="px-2 py-1 bg-gray-100 text-xs font-medium rounded">
-                                Time: ${session.timeSeconds} seconds
+                                Time: ${session.timeDisplay}
                             </span>
                         </div>
                     </div>
@@ -1177,143 +967,39 @@
             resultsModal.classList.remove('hidden');
         }
 
-        // Load practice sessions from Firebase
-        function loadPracticeSessions() {
-            if (!currentUser) {
-                updateSessionsTable([]);
-                return;
-            }
-            
-            console.log("Loading practice sessions...");
-            showNotification("Loading practice sessions...");
-            
-            // Only load from public_practice_data collection
-            db.collection('public_practice_data')
-                .orderBy('timestamp', 'desc')
-                .get()
-                .then(snapshot => {
-                    practiceSessions = [];
-                    studentNames = new Set();
-                    
-                    snapshot.docs.forEach(doc => {
-                        const data = doc.data();
-                        const session = {
-                            id: doc.id,
-                            studentName: data.studentName || "Unknown",
-                            question: `${data.dividend} ÷ ${data.divisor}`,
-                            answer: data.userAnswer || "No answer",
-                            status: data.isCorrect ? "Correct" : "Incorrect",
-                            timeSeconds: data.timeTaken || 0,
-                            timestamp: data.timestamp ? data.timestamp.toDate() : new Date(),
-                            fullData: data
-                        };
-                        
-                        practiceSessions.push(session);
-                        if (session.studentName) {
-                            studentNames.add(session.studentName);
-                        }
-                    });
-                    
-                    // Update UI
-                    updateStudentFilter();
-                    updateSessionsTable();
-                    
-                    showNotification(`Loaded ${practiceSessions.length} practice sessions`, 'success');
-                })
-                .catch(error => {
-                    console.error("Error loading practice sessions:", error);
-                    showNotification(`Error loading practice sessions: ${error.message}`, 'error');
-                });
-        }
-
-        // Create test practice session data
+        // Create test data
         function createTestData() {
-            if (!currentUser) {
-                showNotification('Please sign in first', 'error');
+            if (!db) {
+                showNotification("Database not connected", "error");
                 return;
             }
 
-            const testSessions = [
-                {
-                    studentName: "Test Student 1",
-                    dividend: 1234,
-                    divisor: 56,
-                    studentAnswer: "22r2",
-                    isCorrect: true,
-                    timeSeconds: 45,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                },
-                {
-                    studentName: "Test Student 2",
-                    dividend: 9876,
-                    divisor: 21,
-                    studentAnswer: "470r6",
-                    isCorrect: true,
-                    timeSeconds: 62,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                },
-                {
-                    studentName: "Test Student 1",
-                    dividend: 5432,
-                    divisor: 17,
-                    studentAnswer: "320",
-                    isCorrect: false,
-                    timeSeconds: 38,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                }
-            ];
+            const testData = {
+                studentName: "Test Student",
+                dividend: 1234,
+                divisor: 56,
+                expectedAnswer: "22 R 2",
+                userAnswer: "22 R 2",
+                isCorrect: true,
+                timeTaken: 45,
+                timeDisplay: "45s",
+                timestamp: firebase.firestore.Timestamp.now(),
+                studentWork: [
+                    { row: 0, col: 3, value: "2" },
+                    { row: 0, col: 4, value: "2" }
+                ],
+                sessionId: Date.now()
+            };
 
-            // Save to both collections to ensure visibility
-            const savePromises = [];
-            
-            // Save to regular collection (nested path)
-            testSessions.forEach(session => {
-                savePromises.push(
-                    db.collection('practiceSessions')
-                        .doc(currentUser.uid)
-                        .collection('sessions')
-                        .add(session)
-                        .catch(error => console.error("Error adding to nested practiceSessions:", error))
-                );
-            });
-            
-            // Save to public collection (main app fallback)
-            testSessions.forEach(session => {
-                savePromises.push(
-                    db.collection('public_practice_data').add(session)
-                        .catch(error => console.error("Error adding to public_practice_data:", error))
-                );
-            });
-            
-            // Save to test_sessions (another fallback used by main app)
-            testSessions.forEach(session => {
-                savePromises.push(
-                    db.collection('test_sessions').add(session)
-                        .catch(error => console.error("Error adding to test_sessions:", error))
-                );
-            });
-            
-            // Create a second user to test whether we can see other users' data
-            const secondUserId = "test_user_" + Date.now();
-            
-            testSessions.forEach(session => {
-                const sessionWithOtherUser = {...session, studentName: "Other User Test"};
-                savePromises.push(
-                    db.collection('practiceSessions')
-                        .doc(secondUserId)
-                        .collection('sessions')
-                        .add(sessionWithOtherUser)
-                        .catch(error => console.error("Error adding to test user sessions:", error))
-                );
-            });
-            
-            Promise.all(savePromises)
+            db.collection('public_practice_data')
+                .add(testData)
                 .then(() => {
-                    showNotification(`Created ${testSessions.length * 4} test sessions in multiple collections`, 'success');
-                    loadPracticeSessions(); // Reload data to show new sessions
+                    showNotification("Test data created successfully", "success");
+                    return loadPracticeSessions();
                 })
                 .catch(error => {
-                    showNotification(`Error creating test data: ${error.message}`, 'error');
+                    console.error("Error creating test data:", error);
+                    showNotification("Error creating test data", "error");
                 });
         }
     </script>

@@ -395,7 +395,7 @@
     <!-- Initialize Firebase - Global variables -->
     <script>
         // Global Firebase variables
-        let auth, db;
+        let auth, db, currentUser = null;
         
         // Firebase Configuration
         const firebaseConfig = {
@@ -428,32 +428,29 @@
             .then(() => console.log("Test write successful"))
             .catch(error => console.error("Test write failed:", error));
             
-            // Add a more comprehensive connectivity test
-            console.log("Running comprehensive Firebase test...");
-            const testDocument = {
-                type: "connectivity_test",
-                message: "Testing Firebase connection and permissions",
-                timestamp: new Date().toString(),
-                browser: navigator.userAgent,
-                testId: "test_" + Math.random().toString(36).substring(2, 15)
-            };
-            
-            // Test writing to multiple collections
-            Promise.all([
-                db.collection("app_logs").add(testDocument)
-                    .then(ref => console.log("✓ Test write to app_logs successful:", ref.id))
-                    .catch(err => console.error("✗ Test write to app_logs failed:", err)),
-                    
-                db.collection("test_sessions").add(testDocument)
-                    .then(ref => console.log("✓ Test write to test_sessions successful:", ref.id))
-                    .catch(err => console.error("✗ Test write to test_sessions failed:", err)),
-                    
-                db.collection("public_practice_data").add(testDocument)
-                    .then(ref => console.log("✓ Test write to public_practice_data successful:", ref.id))
-                    .catch(err => console.error("✗ Test write to public_practice_data failed:", err))
-            ])
-            .then(() => console.log("Firebase connectivity tests completed"))
-            .catch(error => console.error("Firebase connectivity tests failed:", error));
+            // Listen for auth state changes
+            auth.onAuthStateChanged(function(user) {
+                currentUser = user;
+                console.log("Auth state changed:", user ? "User signed in" : "User signed out");
+                
+                // Update UI elements
+                const authSection = document.getElementById('authSection');
+                const userDisplay = document.getElementById('userDisplay');
+                const userNameSpan = userDisplay.querySelector('.user-name');
+                
+                if (user) {
+                    // User is signed in
+                    authSection.classList.add('hidden');
+                    userDisplay.classList.remove('hidden');
+                    userNameSpan.textContent = user.isAnonymous ? 'Anonymous User' : (user.displayName || user.email);
+                    console.log("Updated UI for signed in user");
+                } else {
+                    // User is signed out
+                    authSection.classList.remove('hidden');
+                    userDisplay.classList.add('hidden');
+                    console.log("Updated UI for signed out user");
+                }
+            });
             
             // Force anonymous authentication on page load
             auth.signInAnonymously()
@@ -462,13 +459,27 @@
                 })
                 .catch(error => {
                     console.error("Anonymous auth failed:", error);
-                    
-                    // If anonymous auth is disabled, log the specific error
                     if (error.code === 'auth/operation-not-allowed') {
                         console.error("IMPORTANT: Anonymous authentication is not enabled in your Firebase project!");
-                        console.error("Please go to the Firebase console, navigate to Authentication > Sign-in methods, and enable Anonymous authentication.");
                     }
                 });
+                
+            // Set up sign out button listener
+            const signOutBtn = document.getElementById('signOutBtn');
+            if (signOutBtn) {
+                signOutBtn.addEventListener('click', () => {
+                    console.log("Sign out clicked");
+                    auth.signOut()
+                        .then(() => {
+                            console.log("User signed out successfully");
+                            // UI will be updated by the auth state listener
+                        })
+                        .catch(error => {
+                            console.error("Error signing out:", error);
+                        });
+                });
+            }
+            
         } catch (error) {
             console.error("Error initializing Firebase:", error);
         }
@@ -1991,6 +2002,8 @@
             function checkPracticeSolution() {
                 // Stop the timer
                 clearInterval(timerInterval);
+                const timeRecorded = timerValue;
+                const timeDisplayStr = timerDisplay.textContent;
                 
                 // Collect all inputs
                 const inputs = document.querySelectorAll('.grid-input');
@@ -2012,9 +2025,8 @@
                 let userRemainder = '';
                 if (hasRemainder) {
                     const remainderCol = startCol + dividendStr.length;
-                    
-                    // For multi-digit divisors, collect from all remainder input boxes
                     if (divisorStr.length >= 2) {
+                        // For multi-digit divisors, collect all remainder digits
                         for (let i = 0; i < divisorStr.length; i++) {
                             const remainderInput = document.querySelector(`.grid-input[data-row="0"][data-col="${remainderCol + 1 + i}"]`);
                             if (remainderInput && remainderInput.value.trim()) {
@@ -2022,7 +2034,7 @@
                             }
                         }
                     } else {
-                        // Single digit divisor - just get the single remainder input
+                        // Single-digit divisor - just one remainder box
                         const remainderInput = document.querySelector(`.grid-input[data-row="0"][data-col="${remainderCol + 1}"]`);
                         if (remainderInput && remainderInput.value.trim()) {
                             userRemainder = remainderInput.value.trim();
@@ -2030,117 +2042,57 @@
                     }
                 }
                 
-                // Determine if the answer is correct (for remainder problems, both quotient and remainder must be correct)
+                // Format the expected answer string
+                const expectedAnswer = hasRemainder ? `${quotientValue} R ${remainderValue}` : `${quotientValue}`;
+                
+                // Format the user's answer string
+                const userAnswer = hasRemainder ? `${userQuotient} R ${userRemainder}` : `${userQuotient}`;
+                
+                // Determine if the answer is correct
                 const isAnswerCorrect = parseInt(userQuotient) === quotientValue && 
                     (!hasRemainder || parseInt(userRemainder) === remainderValue);
                 
                 // Determine if the steps are correct
                 const areStepsCorrect = evaluateStepsCorrectness();
                 
-                // Format the expected answer string for display
-                const expectedAnswer = hasRemainder ? 
-                    `${quotientValue} R ${remainderValue}` : 
-                    `${quotientValue}`;
-                
-                // Format the user's answer string for display and saving
-                let userAnswer;
-                if (hasRemainder && userRemainder) {
-                    userAnswer = `${userQuotient} R ${userRemainder}`;
-                } else if (hasRemainder) {
-                    userAnswer = `${userQuotient} (missing remainder)`;
-                } else {
-                    userAnswer = userQuotient || "No answer provided";
+                // Collect student work data for review
+                const studentWorkData = [];
+                for (let row = 0; row < 8; row++) {
+                    for (let col = 0; col < startCol + dividendStr.length + 2; col++) {
+                        const input = document.querySelector(`.grid-input[data-row="${row}"][data-col="${col}"]`);
+                        if (input && input.value.trim()) {
+                            studentWorkData.push({
+                                row: row,
+                                col: col,
+                                value: input.value.trim()
+                            });
+                        }
+                    }
                 }
                 
-                // Get formatted time string
-                const timeDisplayStr = timerValue >= MAX_TIMER_SECONDS ? 
-                    `${MAX_TIMER_SECONDS} seconds +` : 
-                    `${timerValue} seconds`;
-                
-                // For data storage, cap at MAX_TIMER_SECONDS
-                const timeRecorded = Math.min(timerValue, MAX_TIMER_SECONDS);
-                
-                // Capture student work for teacher review
-                const studentWorkData = [];
-                
-                // Collect all grid inputs with their values
-                practiceGrid.querySelectorAll('.grid-input').forEach(input => {
-                    if (input.value.trim()) {
-                        studentWorkData.push({
-                            row: parseInt(input.dataset.row),
-                            col: parseInt(input.dataset.col),
-                            value: input.value.trim()
-                        });
-                    }
-                });
-                
-                // Create session data to save to Firebase
+                // Create session data object
                 const sessionData = {
                     studentName: currentStudentName,
                     question: `${dividend} ÷ ${divisor}`,
+                    dividend: dividend,
+                    divisor: divisor,
                     expectedAnswer: expectedAnswer,
                     userAnswer: userAnswer,
                     isCorrect: isAnswerCorrect,
+                    isStepsCorrect: areStepsCorrect,
                     timeTaken: timeRecorded,
+                    timeDisplay: timeDisplayStr,
                     timestamp: new Date(),
+                    startCol: startCol,
                     studentWork: studentWorkData,
-                    assignmentId: currentAssignment ? currentAssignment.id : null,
-                    assignmentName: currentAssignment ? currentAssignment.name : null
+                    sessionId: Date.now()
                 };
                 
-                // Save to local array
-                practiceSessions.push(sessionData);
+                // Save to Firebase
+                savePracticeSessionToFirebase(sessionData);
                 
-                // Save to Firebase if user is authenticated
-                if (currentUser) {
-                    console.log('Attempting to save to Firebase with user:', currentUser.uid);
-                    savePracticeSession(sessionData)
-                        .then((result) => {
-                            console.log('Practice session saved to Firebase successfully!', result);
-                        })
-                        .catch(error => {
-                            console.error('Error saving to Firebase:', error);
-                        });
-                } else {
-                    console.log('No authenticated user, trying anonymous sign in first');
-                    // Try to sign in anonymously before saving
-                    auth.signInAnonymously()
-                        .then((userCredential) => {
-                            console.log('Anonymous sign-in successful!', userCredential.user.uid);
-                            return savePracticeSession(sessionData);
-                        })
-                        .then((result) => {
-                            console.log('Practice session saved to Firebase after anonymous sign-in!', result);
-                        })
-                        .catch(error => {
-                            console.error('Error with anonymous auth or saving:', error);
-                        });
-                }
-                
-                // Create the result message
-                let resultMessage = `
-                    <div class="flex justify-center mb-4">
-                        <div class="number-card p-4 bg-white dark:bg-neutral-700 inline-flex gap-2 items-center shadow-sm">
-                            <span class="text-2xl font-mono font-bold">${dividend}</span>
-                            <span class="text-2xl">÷</span>
-                            <span class="text-2xl font-mono font-bold">${divisor}</span>
-                            <span class="text-2xl">=</span>
-                            <span class="text-2xl font-mono font-bold">${expectedAnswer}</span>
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div class="p-4 bg-white dark:bg-neutral-700 rounded-lg shadow-sm">
-                            <p class="mb-2 font-medium">Your Answer</p>
-                            <p class="text-lg font-mono">${userAnswer}</p>
-                        </div>
-                        
-                        <div class="p-4 bg-white dark:bg-neutral-700 rounded-lg shadow-sm">
-                            <p class="mb-2 font-medium">Time Taken</p>
-                            <p class="text-lg">${timeDisplayStr}</p>
-                        </div>
-                    </div>
-                    
+                // Format result message
+                const resultMessage = `
                     <div class="p-4 ${isAnswerCorrect ? 'bg-success-50 dark:bg-success-900/20' : 'bg-error-50 dark:bg-error-900/20'} rounded-lg shadow-sm">
                         <div class="flex items-center mb-2">
                             <span class="font-medium mr-2">Answer</span>
@@ -2166,83 +2118,41 @@
                 practiceInterface.classList.add('hidden');
                 practiceResults.classList.remove('hidden');
                 
-                // Keep track of all practice results for final summary
-                if (!practiceSessionData) {
-                    practiceSessionData = {
-                        studentName: currentStudentName,
-                        date: new Date().toLocaleString(),
-                        sessions: []
-                    };
-                }
-                
-                practiceSessionData.sessions.push(sessionData);
-                
-                // If there are more questions, show the next question button and auto-advance
+                // If there are more questions, show the next question button
                 if (currentQuestionIndex < currentPracticeQuestions.length - 1) {
                     nextQuestionBtn.classList.remove('hidden');
-                    
-                    // Auto-advance after 0.5 seconds
+                    // Auto-advance after a short delay
                     setTimeout(() => {
                         moveToNextQuestion();
-                    }, 500);
+                    }, 2000);
                 } else {
                     nextQuestionBtn.classList.add('hidden');
-                    
-                    // Add final summary for all questions
-                    let summaryHtml = `
-                        <div class="mt-6 p-4 bg-white dark:bg-neutral-700 rounded-lg shadow-sm">
-                            <h3 class="font-semibold text-lg mb-3 text-primary-600 dark:text-primary-400">Practice Summary</h3>
-                            <div class="space-y-3">
-                    `;
-                    
-                    let correctCount = 0;
-                    practiceSessionData.sessions.forEach((session, index) => {
-                        if (session.isAnswerCorrect) correctCount++;
-                        
-                        summaryHtml += `
-                            <div class="p-3 ${index % 2 === 0 ? 'bg-neutral-50 dark:bg-neutral-600' : 'bg-white dark:bg-neutral-700'} rounded-lg border border-neutral-200 dark:border-neutral-600">
-                                <div class="flex justify-between items-center">
-                                    <div class="font-medium">Question ${index + 1}: ${session.dividend} ÷ ${session.divisor}</div>
-                                    <div class="px-2 py-0.5 ${session.isAnswerCorrect ? 
-                                        'bg-success-100 dark:bg-success-800 text-success-700 dark:text-success-200' : 
-                                        'bg-error-100 dark:bg-error-800 text-error-700 dark:text-error-200'} text-xs font-medium rounded">
-                                        ${session.isAnswerCorrect ? 'Correct' : 'Incorrect'}
-                                    </div>
-                                </div>
-                                <div class="mt-1 text-sm flex justify-between">
-                                    <div>Your answer: <span class="font-mono">${session.userAnswer}</span></div>
-                                    <div>Correct answer: <span class="font-mono">${session.expectedAnswer}</span></div>
-                                </div>
-                            </div>
-                        `;
-                    });
-                    
-                    // Calculate total score
-                    const scorePercent = Math.round((correctCount / practiceSessionData.sessions.length) * 100);
-                    
-                    summaryHtml += `
-                            </div>
-                            <div class="mt-4 p-3 bg-primary-50 dark:bg-primary-900/30 rounded-lg text-center">
-                                <div class="font-semibold text-lg">Final Score: ${correctCount}/${practiceSessionData.sessions.length} (${scorePercent}%)</div>
-                            </div>
-                        </div>
-                    `;
-                    
-                    // Append the summary to the results content
-                    resultsContent.insertAdjacentHTML('beforeend', summaryHtml);
+                    showNotification('Practice session complete!', 'success');
                 }
-                
-                return isAnswerCorrect;
             }
             
             // Move to the next question
             function moveToNextQuestion() {
+                console.log("Moving to next question");
                 currentQuestionIndex++;
                 
                 if (currentQuestionIndex < currentPracticeQuestions.length) {
+                    // Hide results and show practice interface
                     practiceResults.classList.add('hidden');
                     practiceInterface.classList.remove('hidden');
+                    
+                    // Initialize the next practice question
+                    console.log("Initializing next practice question");
                     initializePractice();
+                    
+                    // Start the timer for the new question
+                    startTimer();
+                } else {
+                    console.log("No more questions");
+                    showNotification('Practice session complete!', 'success');
+                    // Show final results or return to settings
+                    practiceResults.classList.add('hidden');
+                    practiceSettingsSection.classList.remove('hidden');
                 }
             }
             
@@ -2838,10 +2748,12 @@
             });
             
             finishBtn.addEventListener('click', function() {
+                console.log("Finish button clicked");
                 checkPracticeSolution();
             });
             
             nextQuestionBtn.addEventListener('click', function() {
+                console.log("Next button clicked");
                 moveToNextQuestion();
             });
             
@@ -2885,7 +2797,7 @@
                         const divisor = parseInt(divisorInput.value, 10);
                         
                         if (!isNaN(dividend) && !isNaN(divisor) && divisor > 0) {
-                            questions.push({
+                    questions.push({
                                 index: index + 1,
                                 dividend,
                                 divisor
@@ -2981,54 +2893,49 @@
                 
                 // Extract user's quotient
                 let userQuotient = '';
+                let allQuotientFieldsFilled = true;
+                
                 for (let i = 0; i < dividendStr.length; i++) {
                     const quotientInput = document.querySelector(`.grid-input[data-row="0"][data-col="${startCol + i}"]`);
                     if (quotientInput && quotientInput.value.trim()) {
                         userQuotient += quotientInput.value.trim();
+                    } else {
+                        allQuotientFieldsFilled = false;
                     }
                 }
                 
-                // Check if we have at least 2 digits in quotient or filled all available quotient fields
-                if (userQuotient.length < 2 && userQuotient.length < dividendStr.length) {
-                    console.log("Not enough quotient digits entered");
-                    return;
-                }
-                
-                // Check remainder if applicable
-                if (hasRemainder) {
-                    const remainderCol = startCol + dividendStr.length;
-                    
-                    // For multi-digit divisors, check all remainder input boxes
-                    if (divisorStr.length >= 2) {
-                        let hasRemainderValue = false;
-                        // Check at least one of the remainder boxes has a value
-                        for (let i = 0; i < divisorStr.length; i++) {
-                            const remainderInput = document.querySelector(`.grid-input[data-row="0"][data-col="${remainderCol + 1 + i}"]`);
-                            if (remainderInput && remainderInput.value.trim()) {
-                                hasRemainderValue = true;
-                                break;
+                // If all quotient fields are filled, proceed with checking
+                if (allQuotientFieldsFilled) {
+                    // For problems with remainder, check if remainder is filled
+                    if (hasRemainder) {
+                        const remainderCol = startCol + dividendStr.length;
+                        let remainderFilled = false;
+                        
+                        if (divisorStr.length >= 2) {
+                            // For multi-digit divisors, check all remainder boxes
+                            for (let i = 0; i < divisorStr.length; i++) {
+                                const remainderInput = document.querySelector(`.grid-input[data-row="0"][data-col="${remainderCol + 1 + i}"]`);
+                                if (remainderInput && remainderInput.value.trim()) {
+                                    remainderFilled = true;
+                                    break;
+                                }
                             }
+                        } else {
+                            // Single-digit divisor - check the single remainder box
+                            const remainderInput = document.querySelector(`.grid-input[data-row="0"][data-col="${remainderCol + 1}"]`);
+                            remainderFilled = remainderInput && remainderInput.value.trim() !== '';
                         }
                         
-                        if (!hasRemainderValue) {
-                            console.log("Multi-digit remainder needed but not entered");
-                            return;
-                        }
-                    } else {
-                        // Single digit divisor - check the single remainder box
-                        const remainderInput = document.querySelector(`.grid-input[data-row="0"][data-col="${remainderCol + 1}"]`);
-                        if (!remainderInput || !remainderInput.value.trim()) {
-                            console.log("Remainder needed but not entered");
+                        // Only proceed if remainder is filled
+                        if (!remainderFilled) {
                             return;
                         }
                     }
-                }
-                
-                // If we've reached here, auto-advance after a short delay
-                console.log("Auto-advancing to next question");
-                setTimeout(() => {
+                    
+                    // If we've reached here, all required fields are filled
+                    console.log("All required fields filled, checking solution");
                     checkPracticeSolution();
-                }, 500);
+                }
             }
             
             // Configure the practice grid with the current problem
@@ -3063,12 +2970,12 @@
                 
                 // Add input fields for the quotient row
                 for (let i = 0; i < dividendStr.length; i++) {
-                    addInputField(0, startCol + i);
-                    
-                    // Add event listeners to auto-advance when filled
-                    const input = practiceGrid.querySelector(`.grid-input[data-row="0"][data-col="${startCol + i}"]`);
+                    const input = addInputField(0, startCol + i);
                     if (input) {
-                        input.addEventListener('input', checkAutoAdvance);
+                        input.addEventListener('input', function() {
+                            console.log("Quotient input changed");
+                            checkAutoAdvance();
+                        });
                     }
                 }
                 
@@ -3078,33 +2985,33 @@
                     setPracticeCellValue(0, remainderCol, 'R', false);
                     
                     // For multi-digit divisors, we need multiple input boxes for the remainder
-                    let maxRemainderLength = 1;
                     if (divisorStr.length >= 2) {
                         // Add a separate input box for each potential digit in the remainder
-                        // For a 2-digit divisor, there can be up to 2 digits in the remainder
-                        maxRemainderLength = 1; // Individual boxes will only hold 1 digit each
-                        
                         for (let i = 0; i < divisorStr.length; i++) {
-                            // Add input field for each digit of the remainder
                             const input = addInputField(0, remainderCol + 1 + i, 1);
                             if (input) {
-                                input.addEventListener('input', checkAutoAdvance);
+                                input.addEventListener('input', function() {
+                                    console.log("Remainder input changed");
+                                    checkAutoAdvance();
+                                });
                             }
                         }
                     } else {
-                        // Single-digit divisor - just add one box as before
+                        // Single-digit divisor - just add one box
                         const input = addInputField(0, remainderCol + 1, 1);
                         if (input) {
-                            input.addEventListener('input', checkAutoAdvance);
+                            input.addEventListener('input', function() {
+                                console.log("Remainder input changed");
+                                checkAutoAdvance();
+                            });
                         }
                     }
                 }
                 
-                // Add input fields and subtraction symbols for the working area
+                // Add input fields for the working area
                 for (let row = 2; row < 8; row++) {
                     // Add subtraction symbol for rows with products (even rows)
                     if (row % 2 === 0) {
-                        // Add a cell for subtraction symbol to the left of the product row
                         const subCol = startCol - 1;
                         if (subCol >= 0) {
                             addSubtractionSymbol(row, subCol);
@@ -3113,12 +3020,34 @@
                     
                     // Add input fields for all working area cells
                     for (let col = startCol; col < startCol + dividendStr.length; col++) {
-                        addInputField(row, col);
+                        const input = addInputField(row, col);
+                        if (input) {
+                            input.addEventListener('input', function() {
+                                // When a working area input is filled, check if we should add horizontal lines
+                                if (row % 2 === 0 && this.value.trim() !== '') {
+                                    // Add horizontal lines under the product row
+                                    for (let i = startCol; i < startCol + dividendStr.length; i++) {
+                                        addPracticeHLine(row, i);
+                                    }
+                                }
+                            });
+                        }
                     }
                 }
                 
-                // Add horizontal lines at regular intervals for subtraction steps
+                // Add initial horizontal lines for subtraction steps
                 addSubtractionLines();
+                
+                // Show the practice interface
+                practiceInterface.classList.remove('hidden');
+                
+                // Start timer
+                startTimer();
+                
+                // Set feedback message
+                feedbackElement.innerHTML = "Fill in your solution or click <strong>Next</strong> to continue";
+                
+                return true;
             }
             
             // Firebase Integration
@@ -3203,30 +3132,13 @@
                 }
                 
                 if (currentUser) {
-                    console.log("User is signed in, updating UI");
                     authSection.classList.add('hidden');
                     userDisplay.classList.remove('hidden');
-                    
-                    const nameElement = userDisplay.querySelector('.user-name');
-                    if (nameElement) {
-                        nameElement.textContent = currentUser.displayName || currentUser.email || "Anonymous User";
+                    const userNameSpan = userDisplay.querySelector('.user-name');
+                    if (userNameSpan) {
+                        userNameSpan.textContent = currentUser.isAnonymous ? 'Anonymous User' : (currentUser.displayName || currentUser.email);
                     }
-                    
-                    // Pre-fill student name if logged in
-                    const studentNameInput = document.getElementById('student-name');
-                    if (studentNameInput) {
-                        if (currentUser.displayName || currentUser.email) {
-                            studentNameInput.value = currentUser.displayName || currentUser.email.split('@')[0];
-                        } else {
-                            studentNameInput.value = "Anonymous User";
-                        }
-                    }
-                    
-                    // Load assignments and practice data if those functions exist
-                    if (typeof loadAssignments === 'function') loadAssignments();
-                    if (typeof loadPracticeSessions === 'function') loadPracticeSessions();
                 } else {
-                    console.log("No user signed in, updating UI");
                     authSection.classList.remove('hidden');
                     userDisplay.classList.add('hidden');
                 }
@@ -3276,67 +3188,38 @@
             }
             
             // Save practice session to Firebase
-            function savePracticeSessionToFirebase(session) {
-                console.log('savePracticeSession called with session:', session);
-                
-                if (!currentUser) {
-                    console.error('No authenticated user when saving session. Saving directly to public collection');
-                    // Save directly to a public collection without requiring auth
-                    return savePublicPracticeSession(session);
+            function savePracticeSessionToFirebase(sessionData) {
+                if (!db) {
+                    console.error("Firebase not initialized");
+                    showNotification("Error: Database not connected", "error");
+                    return;
                 }
-                
-                console.log('Saving to path: practiceSessions/' + currentUser.uid + '/sessions');
-                
-                // Add some simple data to test database connection
-                const dataToSave = {
-                    ...session,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                    testField: 'This is a test to verify Firebase connection'
+
+                // Format the data consistently
+                const formattedData = {
+                    studentName: sessionData.studentName || "Unknown",
+                    dividend: parseInt(sessionData.dividend),
+                    divisor: parseInt(sessionData.divisor),
+                    expectedAnswer: sessionData.expectedAnswer,
+                    userAnswer: sessionData.userAnswer,
+                    isCorrect: sessionData.isCorrect,
+                    timeTaken: parseInt(sessionData.timeTaken) || 0,
+                    timeDisplay: sessionData.timeDisplay,
+                    timestamp: firebase.firestore.Timestamp.now(),
+                    studentWork: sessionData.studentWork || [],
+                    sessionId: Date.now()
                 };
-                
-                return db.collection('practiceSessions')
-                    .doc(currentUser.uid)
-                    .collection('sessions')
-                    .add(dataToSave)
-                    .then((docRef) => {
-                        console.log('Practice session saved to Firebase with ID:', docRef.id);
-                        
-                        // Also try saving to root collection as a test
-                        console.log('Also saving to test_sessions collection as a backup');
-                        return db.collection('test_sessions').add({
-                            ...dataToSave,
-                            savedAt: new Date().toString()
-                        }).then(() => {
-                            console.log('Backup save successful');
-                            return session;
-                        });
-                    })
-                    .catch((error) => {
-                        console.error('Error saving practice session:', error);
-                        // Try the backup method if primary save fails
-                        return savePublicPracticeSession(session);
-                    });
-            }
-            
-            // Save to a public collection without requiring authentication
-            function savePublicPracticeSession(session) {
-                console.log('Attempting to save to public collection as fallback');
-                
-                const dataToSave = {
-                    ...session,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                    savedAt: new Date().toString(),
-                    saveMethod: 'public_fallback'
-                };
-                
-                return db.collection('public_practice_data').add(dataToSave)
-                    .then(docRef => {
-                        console.log('Successfully saved to public collection with ID:', docRef.id);
-                        return session;
+
+                // Save to public_practice_data collection
+                return db.collection('public_practice_data')
+                    .add(formattedData)
+                    .then(() => {
+                        console.log("Practice session saved successfully");
+                        showNotification("Practice session saved!", "success");
                     })
                     .catch(error => {
-                        console.error('Error saving to public collection:', error);
-                        throw error;
+                        console.error("Error saving practice session:", error);
+                        showNotification("Error saving practice session", "error");
                     });
             }
             
