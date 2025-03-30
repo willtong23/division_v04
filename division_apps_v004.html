@@ -2362,8 +2362,12 @@
             // Update the assignment dropdown in practice settings
             function updateAssignmentDropdown() {
                 const assignmentSelect = document.getElementById('assignment-select');
-                if (!assignmentSelect) return;
+                if (!assignmentSelect) {
+                    console.log('Assignment select element not found');
+                    return;
+                }
                 
+                console.log('Updating assignment dropdown with assignments:', assignments);
                 assignmentSelect.innerHTML = '<option value="" selected>No assignment</option>';
                 
                 assignments.forEach(assignment => {
@@ -3370,8 +3374,12 @@
             
             // Save assignment to Firebase
             function saveAssignment(assignment) {
-                if (!currentUser) return Promise.reject('User not authenticated');
+                if (!currentUser) {
+                    console.log('No user logged in, cannot save assignment');
+                    return Promise.reject('User not authenticated');
+                }
                 
+                console.log('Saving assignment:', assignment);
                 return db.collection('assignments')
                     .doc(currentUser.uid)
                     .collection('assignments')
@@ -3380,19 +3388,33 @@
                         timestamp: firebase.firestore.FieldValue.serverTimestamp()
                     })
                     .then((docRef) => {
-                        console.log('Assignment saved to Firebase');
-                        return { id: docRef.id, ...assignment };
+                        console.log('Assignment saved with ID:', docRef.id);
+                        const savedAssignment = { id: docRef.id, ...assignment };
+                        
+                        // Update local assignments array
+                        assignments.push(savedAssignment);
+                        
+                        // Update UI
+                        updateAssignmentDropdown();
+                        updateAssignmentsList();
+                        
+                        return savedAssignment;
                     })
                     .catch((error) => {
                         console.error('Error saving assignment:', error);
+                        showNotification('Error saving assignment. Please try again.', 'error');
                         throw error;
                     });
             }
             
             // Load assignments from Firebase
             function loadAssignments() {
-                if (!currentUser) return Promise.resolve([]);
+                if (!currentUser) {
+                    console.log('No user logged in, cannot load assignments');
+                    return Promise.resolve([]);
+                }
                 
+                console.log('Loading assignments for user:', currentUser.uid);
                 return db.collection('assignments')
                     .doc(currentUser.uid)
                     .collection('assignments')
@@ -3408,6 +3430,8 @@
                             });
                         });
                         
+                        console.log('Loaded assignments:', loadedAssignments);
+                        
                         // Update the assignments array
                         assignments = loadedAssignments;
                         
@@ -3415,7 +3439,6 @@
                         updateAssignmentDropdown();
                         updateAssignmentsList();
                         
-                        console.log('Loaded assignments:', loadedAssignments);
                         return loadedAssignments;
                     })
                     .catch((error) => {
