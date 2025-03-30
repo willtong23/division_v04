@@ -2361,6 +2361,9 @@
             
             // Update the assignment dropdown in practice settings
             function updateAssignmentDropdown() {
+                const assignmentSelect = document.getElementById('assignment-select');
+                if (!assignmentSelect) return;
+                
                 assignmentSelect.innerHTML = '<option value="" selected>No assignment</option>';
                 
                 assignments.forEach(assignment => {
@@ -3398,25 +3401,26 @@
                     .then((querySnapshot) => {
                         const loadedAssignments = [];
                         querySnapshot.forEach((doc) => {
+                            const data = doc.data();
                             loadedAssignments.push({
                                 id: doc.id,
-                                ...doc.data()
+                                ...data
                             });
                         });
                         
                         // Update the assignments array
                         assignments = loadedAssignments;
                         
-                        // Update assignment select options
-                        updateAssignmentSelectOptions();
-                        
-                        // Update assignments list in teacher dashboard
+                        // Update both the practice mode dropdown and dashboard list
+                        updateAssignmentDropdown();
                         updateAssignmentsList();
                         
+                        console.log('Loaded assignments:', loadedAssignments);
                         return loadedAssignments;
                     })
                     .catch((error) => {
                         console.error('Error loading assignments:', error);
+                        showNotification('Error loading assignments. Please try again.', 'error');
                         return [];
                     });
             }
