@@ -704,46 +704,34 @@
                         let cellContent = '';
                         let classes = 'grid-cell';
 
-                        // Add division line
-                        if (rowIdx === 1 && colIdx === divisor.toString().length) { // Keep this adjustment from previous fix
-                            classes += ' division-line';
-                        }
-
-                        // Add horizontal line
-                        if ((rowIdx === 0 && colIdx >= startCol && colIdx < startCol + dividend.toString().length) || 
-                            (rowIdx % 2 === 0 && rowIdx > 0 && rowIdx < 10 && colIdx >= startCol && colIdx < startCol + dividend.toString().length)) {
-                            classes += ' h-line';
-                        }
-
-                        // Add subtraction symbol
-                        if (rowIdx % 2 === 0 && rowIdx > 0 && rowIdx < 10 && colIdx === startCol - 1) {
-                            cellContent = '−';
-                            classes += ' text-center font-bold';
-                        }
-
-                        // Place divisor and dividend
+                        // Place divisor and division line
                         if (rowIdx === 1) {
-                            if (colIdx > 0 && colIdx <= divisor.toString().length) { // Keep this adjustment from previous fix
-                                cellContent = divisor.toString()[colIdx - 1];
+                            if (colIdx > 1 && colIdx <= divisor.toString().length + 1) { // Shift divisor right by 2
+                                cellContent = divisor.toString()[colIdx - 2];
                             } else if (colIdx >= startCol && colIdx < startCol + dividend.toString().length) {
                                 cellContent = dividend.toString()[colIdx - startCol];
                             }
                         }
 
-                        // Add "R" for remainder
-                        if (hasRemainder && rowIdx === 0 && colIdx === startCol + dividend.toString().length) {
-                            cellContent = 'R';
-                            classes += ' font-bold';
+                        // Add division line
+                        if (rowIdx === 1 && colIdx === divisor.toString().length + 1) { // Shift division line right by 2
+                            classes += ' division-line';
                         }
 
-                        // Add student's work - shift all inputs to match grid display
+                        // Add student's work - shift all inputs two cells to the right
                         if (input) {
                             // Skip adding the remainder value from student work
                             if (hasRemainder && rowIdx === 0 && colIdx === startCol + dividend.toString().length + 1) {
                                 // Don't display the explicit remainder number
                             } else {
-                                cellContent = input.value;
-                                classes += ' bg-blue-100 dark:bg-blue-900/30';
+                                // Shift student inputs right by 2
+                                const shiftedInput = studentWork.find(input => 
+                                    input.row === rowIdx && input.col === colIdx - 2
+                                );
+                                if (shiftedInput) {
+                                    cellContent = shiftedInput.value;
+                                    classes += ' bg-blue-100 dark:bg-blue-900/30';
+                                }
                             }
                         }
 
