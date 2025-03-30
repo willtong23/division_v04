@@ -635,106 +635,91 @@
                 showNotification('Cannot display student work: session not found or missing data', 'error');
                 return;
             }
-            
-            // Extract division problem data from the session
-            let dividend = 0;
-            let divisor = 0;
-            let startCol = 0;
-            let studentWork = [];
-            let isAnswerCorrect = false;
-            let userAnswer = '';
-            let timeDisplay = '';
-            
-            try {
-                if (session.question && session.question.includes('÷')) {
-                    const parts = session.question.split('÷').map(p => p.trim());
-                    dividend = parseInt(parts[0]);
-                    divisor = parseInt(parts[1]);
-                }
-                
-                if (session.fullData) {
-                    if (session.fullData.startCol !== undefined) {
-                        startCol = session.fullData.startCol;
-                    } else {
-                        // Fallback calculation for startCol if not explicitly provided
-                        startCol = divisor.toString().length + 3; // Increase by 2 to shift everything right two cells
-                    }
-                    
-                    if (session.fullData.studentWork) {
-                        studentWork = session.fullData.studentWork;
-                    }
-                    
-                    isAnswerCorrect = session.status === 'Correct';
-                    userAnswer = session.answer;
-                    timeDisplay = typeof session.timeSeconds === 'number' 
-                        ? `${session.timeSeconds} seconds` 
-                        : (session.timeSeconds || '0 seconds');
-                }
-            } catch (error) {
-                console.error('Error extracting data:', error);
-                showNotification('Error processing student work data', 'error');
-                return;
-            }
-            
-            // First, remove any existing student work modal
-            const existingModal = document.getElementById('studentWorkModal');
-            if (existingModal) {
-                existingModal.remove();
-            }
-            
+
             // Create modal element
             const modal = document.createElement('div');
             modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 animate-fade-in';
             modal.id = 'studentWorkModal';
-            
-            // Calculate remainder
-            const remainder = dividend % divisor;
-            const hasRemainder = remainder > 0;
 
-            // Create grid to display student's work
-            const gridSize = 10;
-            const gridHtml = Array(gridSize).fill().map(() => Array(gridSize).fill('')).map((row, rowIdx) => {
+            // Parse the question to get dividend and divisor
+            const [dividend, divisor] = session.question.split('÷').map(num => parseInt(num.trim()));
+            const startCol = divisor.toString().length; // Position where dividend starts
+            const studentWork = session.fullData.studentWork || [];
+
+            // Create the grid HTML
+            const gridHtml = Array(10).fill().map((_, rowIdx) => {
                 return `<div class="grid-row flex">
-                    ${row.map((_, colIdx) => {
+                    ${Array(10).fill().map((_, colIdx) => {
                         // Find student input for this cell
                         const input = studentWork.find(input => 
                             input.row === rowIdx && input.col === colIdx
                         );
-
+                        
                         let cellContent = '';
                         let classes = 'grid-cell';
-
-                        // Place divisor and division line
+                        
+                        // Add division line after divisor
+                        if (rowIdx === 1 && colIdx === divisor.toString().length - 1) {
+                            classes += ' division-line';
+                        }
+                        
+                        // Add horizontal lines
+                        if ((rowIdx === 0 && colIdx >= startCol) || 
+                            (rowIdx % 2 === 0 && rowIdx > 0 && colIdx >= startCol)) {
+                            classes += ' h-line';
+                        }
+                        
+                        // Place divisor and dividend
                         if (rowIdx === 1) {
-                            if (colIdx > 1 && colIdx <= divisor.toString().length + 1) { // Shift divisor right by 2
-                                cellContent = divisor.toString()[colIdx - 2];
+                            if (colIdx < divisor.toString().length) {
+                                cellContent = divisor.toString()[colIdx];
                             } else if (colIdx >= startCol && colIdx < startCol + dividend.toString().length) {
                                 cellContent = dividend.toString()[colIdx - startCol];
                             }
                         }
-
-                        // Add division line
-                        if (rowIdx === 1 && colIdx === divisor.toString().length + 1) { // Shift division line right by 2
-                            classes += ' division-line';
-                        }
-
-                        // Add student's work - shift all inputs two cells to the right
+                        
+                        // Add student's work
                         if (input) {
-                            // Skip adding the remainder value from student work
-                            if (hasRemainder && rowIdx === 0 && colIdx === startCol + dividend.toString().length + 1) {
-                                // Don't display the explicit remainder number
-                            } else {
-                                // Shift student inputs right by 2
-                                const shiftedInput = studentWork.find(input => 
-                                    input.row === rowIdx && input.col === colIdx - 2
-                                );
-                                if (shiftedInput) {
-                                    cellContent = shiftedInput.value;
-                                    classes += ' bg-blue-100 dark:bg-blue-900/30';
-                                }
+                            cellContent = input.value;
+                            classes += ' bg-blue-100';
+                        }
+                        
+                        // Add "R" for remainder if needed
+                        if (dividend % divisor > 0 && 
+                            rowIdx === 0 && colIdx === startCol + dividend.toString().length) {
+                            cellContent = 'R';
+                        }
+                        
+                        // Add remainder value if present
+                        if (dividend % divisor > 0 && 
+                            rowIdx === 0 && colIdx === startCol + dividend.toString().length + 1) {
+                            cellContent = (dividend % divisor).toString();
+                            classes += ' bg-blue-100';
+                        }
+                        
+                        // Add quotient digits and intermediate work
+                        const quotient = Math.floor(dividend / divisor).toString();
+                        if (rowIdx === 0 && colIdx >= startCol && colIdx < startCol + quotient.length) {
+                            const quotientInput = studentWork.find(input => 
+                                input.row === 0 && input.col === colIdx
+                            );
+                            if (quotientInput) {
+                                cellContent = quotientInput.value;
+                                classes += ' bg-blue-100';
                             }
                         }
-
+                        
+                        // Add intermediate calculations (products and differences)
+                        if (rowIdx > 1) {
+                            const workInput = studentWork.find(input => 
+                                input.row === rowIdx && input.col === colIdx
+                            );
+                            if (workInput) {
+                                cellContent = workInput.value;
+                                classes += ' bg-blue-100';
+                            }
+                        }
+                        
                         return `<div class="${classes}">${cellContent}</div>`;
                     }).join('')}
                 </div>`;
@@ -742,60 +727,47 @@
 
             // Create the modal content
             modal.innerHTML = `
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-5 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                <div class="bg-white rounded-xl shadow-lg p-6 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-semibold">Student Work: ${session.studentName}</h2>
-                        <button id="closeStudentWorkModal" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-2">
+                        <button id="closeModalBtn" class="text-gray-500 hover:text-gray-700">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
                     </div>
-                    
+
                     <div class="mb-4">
-                        <p class="font-medium mb-1">Question: ${dividend} ÷ ${divisor}</p>
-                        <p class="mb-1">Correct Answer: ${Math.floor(dividend/divisor)}${hasRemainder ? ` R ${remainder}` : ''}</p>
-                        <p class="mb-3">Student's Answer: <span class="${isAnswerCorrect ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">${userAnswer}</span></p>
+                        <p class="font-medium mb-1">Question: ${session.question}</p>
+                        <p class="mb-1">Correct Answer: ${Math.floor(dividend/divisor)}${dividend % divisor > 0 ? ` R ${dividend % divisor}` : ''}</p>
+                        <p class="mb-3">Student's Answer: <span class="${session.status === 'Correct' ? 'text-green-600' : 'text-red-600'}">${session.answer}</span></p>
                         <div class="flex gap-2 mb-4">
-                            <span class="px-2 py-1 text-xs font-medium rounded ${isAnswerCorrect ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'}">
-                                Answer: ${isAnswerCorrect ? 'Correct' : 'Incorrect'}
+                            <span class="px-2 py-1 text-xs font-medium rounded ${session.status === 'Correct' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                Answer: ${session.status}
                             </span>
-                            <span class="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-xs font-medium rounded">
-                                Time: ${timeDisplay}
+                            <span class="px-2 py-1 bg-gray-100 text-xs font-medium rounded">
+                                Time: ${session.timeSeconds} seconds
                             </span>
                         </div>
                     </div>
-                    
-                    <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-4">
+
+                    <div class="border border-gray-200 rounded-lg p-4 mb-4">
                         <h3 class="font-medium mb-3">Student's Work:</h3>
-                        <div class="flex justify-center overflow-x-auto">
+                        <div class="flex justify-center">
                             <div class="student-work-grid text-center">
                                 ${gridHtml}
                             </div>
                         </div>
                     </div>
                     
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                    <p class="text-sm text-gray-500 mt-2">
                         Note: Blue cells show the student's input.
                     </p>
                 </div>
             `;
 
-            // Append the modal to the body
-            document.body.appendChild(modal);
-
             // Add styles for the grid
-            const styleId = 'student-work-grid-styles';
-            let style = document.getElementById(styleId);
-            
-            // Remove old style if it exists
-            if (style) {
-                style.remove();
-            }
-            
-            // Create new style element
-            style = document.createElement('style');
-            style.id = styleId;
+            const style = document.createElement('style');
             style.textContent = `
                 .student-work-grid .grid-cell {
                     width: 2.5rem;
@@ -805,53 +777,34 @@
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    border: 1px solid #e5e7eb;
+                    border: 1px solid #e7e7ec;
                     position: relative;
-                }
-                
-                .dark .student-work-grid .grid-cell {
-                    border-color: #4b5563;
                 }
                 
                 .student-work-grid .h-line {
                     border-bottom: 2px solid #374151;
                 }
                 
-                .dark .student-work-grid .h-line {
-                    border-bottom: 2px solid #d1d5db;
-                }
-                
                 .student-work-grid .division-line {
                     border-right: 3px solid #374151;
                 }
-                
-                .dark .student-work-grid .division-line {
-                    border-right: 3px solid #d1d5db;
-                }
-                
-                @keyframes fadeIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
-                }
-                
-                .animate-fade-in {
-                    animation: fadeIn 0.3s ease-out;
-                }
             `;
+
+            // Append the modal and styles to the body
             document.head.appendChild(style);
+            document.body.appendChild(modal);
 
             // Add event listener to close button
-            const closeBtn = document.getElementById('closeStudentWorkModal');
-            if (closeBtn) {
-                closeBtn.addEventListener('click', function() {
-                    modal.remove();
-                });
-            }
+            document.getElementById('closeModalBtn').addEventListener('click', function() {
+                modal.remove();
+                style.remove();
+            });
 
-            // Close modal when clicking outside the content
+            // Close modal when clicking outside
             modal.addEventListener('click', function(e) {
                 if (e.target === modal) {
                     modal.remove();
+                    style.remove();
                 }
             });
         }
@@ -1234,146 +1187,36 @@
             console.log("Loading practice sessions...");
             showNotification("Loading practice sessions...");
             
-            // Add debug information container
-            const debugInfo = document.createElement('div');
-            debugInfo.className = 'mt-4 p-4 bg-gray-100 rounded-lg text-sm';
-            debugInfo.innerHTML = '<h3 class="font-bold mb-2">Debugging Collection Sources</h3><div id="debug-collections" class="space-y-1 font-mono text-xs"></div>';
-            
-            const debugContainer = document.getElementById('connectionStatus');
-            debugContainer.appendChild(debugInfo);
-            const debugCollections = document.getElementById('debug-collections');
-
-            // Record collection stats
-            const collectionCounts = {};
-            
-            // First, get all user IDs to check their nested collections
-            db.collection('practiceSessions')
+            // Only load from public_practice_data collection
+            db.collection('public_practice_data')
+                .orderBy('timestamp', 'desc')
                 .get()
-                .then(usersSnapshot => {
-                    const userCount = usersSnapshot.docs.length;
-                    console.log("Found user directories:", userCount);
-                    debugCollections.innerHTML += `<div>Found ${userCount} user directories in practiceSessions collection</div>`;
-                    
-                    // Fetch from all potential locations
-                    const fetchPromises = [];
-                    
-                    // 1. Check each user's nested sessions collection
-                    usersSnapshot.docs.forEach(userDoc => {
-                        fetchPromises.push(
-                            db.collection('practiceSessions')
-                                .doc(userDoc.id)
-                                .collection('sessions')
-                                .orderBy('timestamp', 'desc')
-                                .get()
-                                .then(snapshot => {
-                                    const count = snapshot.docs.length;
-                                    console.log(`User ${userDoc.id} sessions:`, count);
-                                    collectionCounts[`practiceSessions/${userDoc.id}/sessions`] = count;
-                                    debugCollections.innerHTML += `<div>Found ${count} sessions for user ${userDoc.id}</div>`;
-                                    return snapshot;
-                                })
-                                .catch(error => {
-                                    console.error(`Error fetching from user ${userDoc.id} sessions:`, error);
-                                    collectionCounts[`practiceSessions/${userDoc.id}/sessions`] = 0;
-                                    debugCollections.innerHTML += `<div class="text-red-500">Error accessing sessions for user ${userDoc.id}</div>`;
-                                    return { docs: [] };
-                                })
-                        );
-                    });
-                    
-                    // 2. Check the current user's sessions (which should be included above, but just to be safe)
-                    if (currentUser) {
-                        fetchPromises.push(
-                            db.collection('practiceSessions')
-                                .doc(currentUser.uid)
-                                .collection('sessions')
-                                .orderBy('timestamp', 'desc')
-                                .get()
-                                .then(snapshot => {
-                                    const count = snapshot.docs.length;
-                                    collectionCounts[`practiceSessions/${currentUser.uid}/sessions`] = count;
-                                    debugCollections.innerHTML += `<div>Current user ${currentUser.uid} sessions: ${count}</div>`;
-                                    return snapshot;
-                                })
-                                .catch(error => {
-                                    console.error("Error fetching from current user sessions:", error);
-                                    debugCollections.innerHTML += `<div class="text-red-500">Error accessing sessions for current user</div>`;
-                                    return { docs: [] };
-                                })
-                        );
-                    }
-                    
-                    // 3. Check flat collections and fallbacks
-                    const flatCollections = [
-                        'public_practice_data',
-                        'test_sessions',
-                        'practiceSessions',
-                        'public_practiceSessions',
-                        'practice_sessions',
-                        'sessions'
-                    ];
-                    
-                    flatCollections.forEach(collection => {
-                        fetchPromises.push(
-                            db.collection(collection)
-                                .orderBy('timestamp', 'desc')
-                                .get()
-                                .then(snapshot => {
-                                    const count = snapshot.docs.length;
-                                    console.log(`Collection ${collection}:`, count);
-                                    collectionCounts[collection] = count;
-                                    debugCollections.innerHTML += `<div>Collection ${collection}: ${count} documents</div>`;
-                                    return snapshot;
-                                })
-                                .catch(error => {
-                                    console.error(`Error fetching from ${collection}:`, error);
-                                    collectionCounts[collection] = 0;
-                                    debugCollections.innerHTML += `<div class="text-red-500">Error accessing collection ${collection}</div>`;
-                                    return { docs: [] };
-                                })
-                        );
-                    });
-                    
-                    // Process all fetched data
-                    return Promise.all(fetchPromises);
-                })
-                .then(snapshotArray => {
-                    console.log("Retrieved", snapshotArray.length, "snapshots to process");
-                    
+                .then(snapshot => {
                     practiceSessions = [];
                     studentNames = new Set();
                     
-                    // Process all snapshots
-                    snapshotArray.forEach((snapshot, index) => {
-                        console.log(`Processing snapshot ${index} with ${snapshot.docs.length} documents`);
+                    snapshot.docs.forEach(doc => {
+                        const data = doc.data();
+                        const session = {
+                            id: doc.id,
+                            studentName: data.studentName || "Unknown",
+                            question: `${data.dividend} ÷ ${data.divisor}`,
+                            answer: data.userAnswer || "No answer",
+                            status: data.isCorrect ? "Correct" : "Incorrect",
+                            timeSeconds: data.timeTaken || 0,
+                            timestamp: data.timestamp ? data.timestamp.toDate() : new Date(),
+                            fullData: data
+                        };
                         
-                        snapshot.docs.forEach(doc => {
-                            const data = doc.data();
-                            const session = processSessionData(doc.id, data);
-                            if (session) {
-                                practiceSessions.push(session);
-                                studentNames.add(session.studentName);
-                            }
-                        });
-                    });
-                    
-                    // Sort by timestamp
-                    practiceSessions.sort((a, b) => {
-                        if (!a.timestamp) return 1;
-                        if (!b.timestamp) return -1;
-                        return b.timestamp - a.timestamp;
+                        practiceSessions.push(session);
+                        if (session.studentName) {
+                            studentNames.add(session.studentName);
+                        }
                     });
                     
                     // Update UI
                     updateStudentFilter();
                     updateSessionsTable();
-                    
-                    // Add collection count summary
-                    debugCollections.innerHTML += '<div class="border-t border-gray-300 my-2 pt-2"><strong>Summary:</strong></div>';
-                    for (const [collection, count] of Object.entries(collectionCounts)) {
-                        const color = count > 0 ? 'text-green-600 font-bold' : 'text-gray-500';
-                        debugCollections.innerHTML += `<div class="${color}">${collection}: ${count} items</div>`;
-                    }
                     
                     showNotification(`Loaded ${practiceSessions.length} practice sessions`, 'success');
                 })
@@ -1381,78 +1224,6 @@
                     console.error("Error loading practice sessions:", error);
                     showNotification(`Error loading practice sessions: ${error.message}`, 'error');
                 });
-        }
-        
-        // Process session data from Firestore
-        function processSessionData(id, data) {
-            if (!data) return null;
-            
-            console.log("Processing document:", id, data);
-            
-            // Special handling for public_practice_data format
-            if (data.studentName === '12ddb' || data.saveMethod === 'public_fallback') {
-                console.log("Found 12ddb student data!");
-                return {
-                    id: id,
-                    studentName: data.studentName || "Unknown",
-                    question: data.question || `${data.dividend || "?"} ÷ ${data.divisor || "?"}`,
-                    answer: data.answer || data.studentAnswer || "No answer",
-                    status: data.isCorrect === true ? "Correct" : "Incorrect",
-                    timeSeconds: data.timeInSeconds || data.time || 0,
-                    timestamp: data.timestamp ? (data.timestamp.toDate ? data.timestamp.toDate() : new Date(data.timestamp)) : new Date(),
-                    fullData: data // Keep the full data for reference
-                };
-            }
-            
-            // Check if the data has the required fields
-            if (!data.dividend && !data.divisor && !data.questionData && !data.question) {
-                console.log("Document doesn't have required division data:", id);
-                return null;
-            }
-            
-            // Extract timestamp
-            let timestamp = null;
-            if (data.timestamp && data.timestamp.toDate) {
-                timestamp = data.timestamp.toDate();
-            } else if (data.timestamp) {
-                timestamp = new Date(data.timestamp);
-            } else {
-                timestamp = new Date(); // Default to current time if no timestamp
-            }
-            
-            // Handle different data formats
-            let dividend, divisor, studentAnswer, isCorrect, timeSeconds;
-            let question = data.question; // Direct question field
-            
-            if (question) {
-                // Use the direct question
-            } else if (data.questionData) {
-                // Format from newer versions
-                dividend = data.questionData.dividend || "?";
-                divisor = data.questionData.divisor || "?";
-                question = `${dividend} ÷ ${divisor}`;
-            } else {
-                // Direct format
-                dividend = data.dividend || "?";
-                divisor = data.divisor || "?";
-                question = `${dividend} ÷ ${divisor}`;
-            }
-            
-            studentAnswer = data.studentAnswer || data.answer || "No answer";
-            isCorrect = data.isCorrect === true;
-            timeSeconds = data.timeSeconds || data.timeInSeconds || data.time || 0;
-            
-            // Create standardized session object
-            return {
-                id: id,
-                studentName: data.studentName || data.student || "Unknown Student",
-                question: question,
-                answer: studentAnswer,
-                status: isCorrect ? "Correct" : "Incorrect",
-                timeSeconds: timeSeconds,
-                timestamp: timestamp,
-                fullData: data // Keep the full data for reference
-            };
         }
 
         // Create test practice session data
